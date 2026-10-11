@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "mission-autonomy-types.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.mission.proto";
+option java_outer_classname = "MissionAutonomyDtoProto";
+option go_package = "gen/missionautonomy/dto/proto";
+
+message GeoPointProtoDTO {
+  double latitude = 1;
+  double longitude = 2;
+  optional double altitude = 3;
+}
+
+message GeoAreaProtoDTO {
+  GeoAreaType type = 1;
+  repeated GeoPointProtoDTO vertices = 2;
+  optional GeoPointProtoDTO center = 3;
+  optional double radius_meters = 4;
+  optional string geo_json = 5;
+}
+
+message MissionZoneProtoDTO {
+  optional string id = 1;
+  string name = 2;
+  MissionZoneType type = 3;
+  ZoneEnforcementType enforcement_type = 4;
+  GeoAreaProtoDTO area = 5;
+  optional bool active = 6;
+  optional int32 priority = 7;
+  DynamicConfigProto config = 8;
+  // Fields 9-15 are set on the no-fly zones connector persists (ConnectorService.ListNoFlyZones).
+  // The organization the zone belongs to; every flight of that organization is checked against it.
+  optional string organization_id = 9;
+  // The site (theatre) the zone is filed under, if any. A label for finding it again, not a limit
+  // on enforcement: a zone is a piece of airspace, and every flight of the organization respects it.
+  optional string theatre_id = 10;
+  // The altitude band the zone restricts, in metres above the takeoff point -- the same frame as
+  // navigation.go_to's altitude. Unset minimum = from the ground, unset maximum = no ceiling.
+  optional double min_altitude_meters = 11;
+  optional double max_altitude_meters = 12;
+  optional google.protobuf.Timestamp created_at = 13;
+  optional google.protobuf.Timestamp modified_at = 14;
+  optional string modified_from = 15;
+}
+
+message WorkflowStepProtoDTO {
+  optional string id = 1;
+  string name = 2;
+  WorkflowStepType type = 3;
+  WorkflowStepStatus status = 4;
+  optional string task_id = 5;
+  repeated string depends_on_step_ids = 6;
+  optional int32 execution_order = 7;
+  optional int32 priority = 8;
+  DynamicConfigProto config = 9;
+}
+
+message AutomationWorkflowProtoDTO {
+  ExecutionStrategy execution_strategy = 1;
+  FailureStrategy failure_strategy = 2;
+  repeated WorkflowStepProtoDTO steps = 3;
+  optional bool decision_engine_enabled = 4;
+  DynamicConfigProto workflow_config = 5;
+}
+
+message RetryPolicyProtoDTO {
+  optional int32 max_attempts = 1;
+  optional int32 retry_delay_seconds = 2;
+  optional float backoff_multiplier = 3;
+}
+
+message MissionProtoDTO{
+  optional string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated TaskProtoDTO tasks = 4;
+  MissionStatus status = 5;
+  MissionType type = 6;
+  optional string geo_json = 7;
+  optional google.protobuf.Timestamp start_date = 8;
+  optional google.protobuf.Timestamp end_date = 9;
+  repeated string assigned_assets = 10;
+  optional google.protobuf.Timestamp created_at = 11;
+  optional google.protobuf.Timestamp modified_at = 12;
+  optional string updated_user = 13;
+  reserved 14;
+  DynamicConfigProto mission_config = 15;
+  optional string external_id = 16;
+  optional string external_mission_type = 17;
+  AutonomyConfigProto autonomy_config = 18;
+  optional int32 priority = 19;
+  optional int32 execution_order = 20;
+  optional int32 progress = 21;
+  AutomationWorkflowProtoDTO automation_workflow = 22;
+  repeated SchedulerProtoDTO schedulers = 23;
+  repeated MissionZoneProtoDTO zones = 24;
+}
+
+// POJO-aligned task DTO with type-safe config payload.
+message TaskProtoDTO{
+  optional string id = 1;
+  optional string mission_id = 2;
+  optional google.protobuf.Timestamp created_at = 35;
+  optional google.protobuf.Timestamp modified_at = 38;
+  optional string modified_from = 39;
+  optional string name = 3;
+  optional string description = 4;
+  TaskTypeProto task_type = 5;
+
+  // Deprecated JSON string config - use taskConfig instead
+  optional string config = 6 [deprecated = true];
+
+  TaskStatus status = 7;
+  optional string asset_id = 8;
+  optional string sn_number = 9;
+  optional int32 current_progress = 10;
+  optional string current_step = 11;
+  optional FlighttaskBreakReasonEnumProto break_reason = 12;
+
+  // Legacy external command identifier. New dynamic tasks use dynamic_command_config.
+  optional string external_command_type = 40;
+
+  // External task ID echoed back by the edge adapter (e.g. DJI flightId, Mavlink mission_id).
+  // Used to correlate TaskEvent progress updates and Notifications back to this DB record.
+  optional string external_task_id = 41;
+  DynamicConfigProto task_config_template = 42;
+  optional int32 execution_order = 43;
+  optional bool decision_engine_enabled = 44;
+  AutonomyConfigProto autonomy_config = 45;
+  optional int32 priority = 46;
+  optional int32 timeout_seconds = 47;
+  RetryPolicyProtoDTO retry_policy = 48;
+
+  // Type-safe task configuration (replaces config field)
+  oneof task_config {
+    WaypointTaskConfigProto waypoint_config = 50;
+    DetectTaskConfigProto detect_config = 51;
+    AreaMappingTaskConfigProto area_mapping_config = 52;
+    PoiTaskConfigProto poi_config = 53;
+    FollowTaskConfigProto follow_config = 54;
+    TrackTaskConfigProto track_config = 55;
+    DynamicCommandTaskConfigProto dynamic_command_config = 56;
+  }
+
+}
+
+message SchedulerProtoDTO{
+  optional string id = 1;
+  string name = 2;
+  reserved 3, 4;
+  reserved "mission_id", "task_id";
+  string cron_expression = 5;
+  optional bool active = 6;
+  SchedulerType type = 7;
+  optional string client_time_zone = 8;
+  optional google.protobuf.Timestamp created_at = 9;
+  optional google.protobuf.Timestamp modified_at = 10;
+  reserved 11;
+  // Mission-free scheduler target. Exactly one of command_id or
+  // application_id + skill_id is expected for new schedules.
+  optional string asset_sn = 12;
+  optional string command_id = 13;
+  optional string application_id = 14;
+  optional string skill_id = 15;
+  google.protobuf.Struct execution_parameters = 16;
+  optional bool auto_start = 17;
+  // The organization this schedule belongs to. Set server-side from the caller's token when it is
+  // created (a system admin may choose one); every execution it starts carries it, so policy
+  // selection, an Application's organization scope and who may see the run all work. Unset = a
+  // system-wide schedule, visible to system admins only.
+  optional string organization_id = 18;
+  // The last time this schedule fired and what came of it. Written by mission-autonomy after every
+  // firing through RecordSchedulerFiring, never by an edit: UpdateScheduler ignores these four.
+  optional google.protobuf.Timestamp last_firing_at = 19;
+  optional SchedulerFiringOutcome last_firing_outcome = 20;
+  // Why a SKIPPED or FAILED firing did not start a run, in full (every asset with its reason).
+  optional string last_firing_reason = 21;
+  // The execution a STARTED firing created.
+  optional string last_execution_id = 22;
+}
+
+message SchedulerProtoDTOList{
+  repeated SchedulerProtoDTO scheduler_dto_list= 1;
+}

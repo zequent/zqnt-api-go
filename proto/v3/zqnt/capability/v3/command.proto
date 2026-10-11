@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+// Running a capability. The same messages are used between client and platform and between
+// platform and adapter, so a command id travels end to end unchanged.
+//
+// Rules: discovery never gates dispatch -- a command id the platform does not know is still sent,
+// the adapter refuses it. Params are validated against the capability's input schema in the
+// adapter SDK; the platform may warn but does not reject on schema.
+package zqnt.capability.v3;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "zqnt/capability/v3/capability.proto";
+import "zqnt/common/v3/common.proto";
+
+option go_package = "github.com/zequent/zqnt-api-go/gen/zqnt/capability/v3;capabilityv3";
+option java_multiple_files = true;
+option java_package = "com.zqnt.protos.capability.v3";
+
+// Ties a command to the Application/Skill run that issued it, when there is one.
+message ExecutionRef {
+  string execution_id = 1;
+  string node_id = 2;
+}
+
+// One command, as a client sends it to the platform and the platform sends it to the adapter.
+message Command {
+  zqnt.common.v3.AssetRef asset = 1;
+  string command_id = 2;
+  google.protobuf.Struct params = 3;
+  Target target = 4;
+  // Unset = the capability's own default timeout.
+  google.protobuf.Duration timeout = 5;
+  ExecutionRef execution = 6;
+}
+
+enum CommandState {
+  COMMAND_STATE_UNSPECIFIED = 0;
+  // Accepted, still running; completion follows as a CommandEvent.
+  COMMAND_STATE_ACCEPTED = 1;
+  COMMAND_STATE_RUNNING = 2;
+  COMMAND_STATE_SUCCEEDED = 3;
+  COMMAND_STATE_FAILED = 4;
+  // Refused before it started (unknown id, schema, precondition, permission).
+  COMMAND_STATE_REJECTED = 5;
+  COMMAND_STATE_CANCELLED = 6;
+  COMMAND_STATE_TIMED_OUT = 7;
+}
+
+message CommandResult {
+  // Platform-wide id of this command run; every CommandEvent carries it.
+  string command_execution_id = 1;
+  string command_id = 2;
+  CommandState state = 3;
+  // Matches the capability's output schema. Set when state is SUCCEEDED.
+  google.protobuf.Struct result = 4;
+  zqnt.common.v3.Error error = 5;
+}
+
+// Progress and completion of a command that was ACCEPTED. `occurred_at` is required: an event
+// without it is refused, never silently dropped.
+message CommandEvent {
+  string command_execution_id = 1;
+  string command_id = 2;
+  zqnt.common.v3.AssetRef asset = 3;
+  CommandState state = 4;
+  // 0..1 when the adapter can tell.
+  optional float progress = 5;
+  optional google.protobuf.Duration remaining = 6;
+  string message = 7;
+  google.protobuf.Struct result = 8;
+  zqnt.common.v3.Error error = 9;
+  google.protobuf.Timestamp occurred_at = 10;
+  ExecutionRef execution = 11;
+}

@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+// Shared building blocks of every zqnt v3 contract. Nothing domain-specific lives here.
+package zqnt.common.v3;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/zequent/zqnt-api-go/gen/zqnt/common/v3;commonv3";
+option java_multiple_files = true;
+option java_package = "com.zqnt.protos.common.v3";
+
+// Identifies one asset. `sn` is the serial number the asset reports; `id` the platform's id for
+// it. Either is enough; when both are set they must name the same asset.
+message AssetRef {
+  string sn = 1;
+  string id = 2;
+}
+
+// What every request may carry for tracing and safe retries. The caller's identity and
+// organization come from the credential on the call, never from the message.
+message RequestContext {
+  // Correlates logs and events across services (2.x: `tid`).
+  string request_id = 1;
+  // Same key, same effect: a retried request with a key already seen returns the first result.
+  string idempotency_key = 2;
+}
+
+enum ErrorCategory {
+  ERROR_CATEGORY_UNSPECIFIED = 0;
+  // The request itself is wrong (schema, missing field, unknown id).
+  ERROR_CATEGORY_INVALID_ARGUMENT = 1;
+  // The caller may not do this (role, license, policy, approval).
+  ERROR_CATEGORY_PERMISSION_DENIED = 2;
+  // The asset or its state does not allow it right now (offline, busy, not airborne, no-fly zone).
+  ERROR_CATEGORY_PRECONDITION_FAILED = 3;
+  // The asset or adapter tried and failed.
+  ERROR_CATEGORY_ASSET = 4;
+  // A platform service failed.
+  ERROR_CATEGORY_SERVICE = 5;
+  ERROR_CATEGORY_TIMEOUT = 6;
+  ERROR_CATEGORY_NOT_FOUND = 7;
+}
+
+message Error {
+  ErrorCategory category = 1;
+  // Stable, machine-readable code, e.g. "flight.not_airborne" (declared by the capability).
+  string code = 2;
+  // Human-readable, safe to show an operator.
+  string message = 3;
+  bool retryable = 4;
+  google.protobuf.Struct details = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+}
+
+message PageRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message PageResponse {
+  string next_page_token = 1;
+  int64 total_size = 2;
+}
+
+message GeoPoint {
+  double latitude = 1;
+  double longitude = 2;
+  // Metres; meaning (above takeoff point, above sea level) is stated by the field that uses it.
+  optional double altitude = 3;
+}

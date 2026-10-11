@@ -1,0 +1,222 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "common.proto";
+import "capability-execution-contracts.proto";
+import "mission-autonomy-contracts.proto";
+import "google/protobuf/timestamp.proto";
+import "mission-autonomy-dto.proto";
+import "mission-autonomy-types.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.mission.proto";
+option java_outer_classname = "MissionAutonomyProto";
+option go_package = "gen/missionautonomy/proto";
+
+// MissionAutonomyService manages applications (skill packages), skill executions, schedules and decisions.
+service MissionAutonomyService {
+  // Mission-free application administration. An Application is a deployable package of Skills
+  // (e.g. "takeoff", "goto", "look-at" — the simplest Application is one Skill wrapping one command).
+  rpc UpsertApplication(UpsertApplicationRequest) returns (ApplicationResponse);
+  rpc GetApplication(GetApplicationRequest) returns (ApplicationResponse);
+  rpc ListApplications(ListApplicationsRequest) returns (ApplicationListResponse);
+  rpc DeleteApplication(DeleteApplicationRequest) returns (ApplicationResponse);
+  rpc GetApplicationEnvironments(GetApplicationEnvironmentsRequest) returns (ApplicationEnvironmentsResponse);
+  rpc PromoteApplicationVersion(PromoteApplicationVersionRequest) returns (ApplicationEnvironmentsResponse);
+
+  // Unified execution API. ExecuteSkill is the low-friction entry point for simple commands.
+  rpc CreateSkillExecution(CreateSkillExecutionRequest) returns (SkillExecutionResponse);
+  rpc ExecuteSkill(ExecuteSkillRequest) returns (SkillExecutionResponse);
+  rpc GetSkillExecution(GetSkillExecutionRequest) returns (SkillExecutionResponse);
+  rpc ListSkillExecutions(ListSkillExecutionsRequest) returns (SkillExecutionListResponse);
+  rpc StartSkillExecution(SkillExecutionLifecycleRequest) returns (SkillExecutionResponse);
+  rpc PauseSkillExecution(SkillExecutionLifecycleRequest) returns (SkillExecutionResponse);
+  rpc ResumeSkillExecution(SkillExecutionLifecycleRequest) returns (SkillExecutionResponse);
+  rpc CancelSkillExecution(SkillExecutionLifecycleRequest) returns (SkillExecutionResponse);
+  rpc SignalSkillExecution(SignalSkillExecutionRequest) returns (SkillExecutionResponse);
+  rpc ResolveExecutionConfig(ResolveExecutionConfigRequest) returns (ResolveExecutionConfigResponse);
+
+  rpc ListSchedulers(ListSchedulersRequest) returns (SchedulerResponse);
+  rpc GetScheduler(GetSchedulerRequest) returns (SchedulerResponse);
+  rpc CreateScheduler(CreateSchedulerRequest) returns (SchedulerResponse);
+  rpc UpdateScheduler(UpdateSchedulerRequest) returns (SchedulerResponse);
+  rpc DeleteScheduler(DeleteSchedulerRequest) returns (SchedulerResponse);
+  rpc CreateSchedulers(CreateSchedulersRequest) returns (SchedulerResponse);
+  rpc DeleteSchedulers(DeleteSchedulersRequest) returns (SchedulerResponse);
+
+  // Decision Engine - evaluate a detection event and return a tactical decision
+  rpc EvaluateDetection(EvaluateDetectionRequest) returns (DecisionResponse);
+
+  // Which asset the operational policies would choose right now, and why -- a dry run of the same
+  // selection a run that names no asset goes through (site first, busy assets, policies in order),
+  // with no side effects: nothing is dispatched, held or recorded.
+  rpc SimulateAssetSelection(SimulateAssetSelectionRequest) returns (SimulateAssetSelectionResponse);
+
+  // Whether a single flight command may fly as given, checked against the organization's no-fly
+  // zones by the same planner every Skill's movement nodes go through -- so Remote Control refuses
+  // a fly-to for the same reason a Skill would reroute or fail. No side effects.
+  rpc CheckFlightPath(CheckFlightPathRequest) returns (CheckFlightPathResponse);
+}
+
+
+// ========== AUTONOMY LAYER / DECISION ENGINE ==========
+
+message EvaluateDetectionRequest {
+  RequestBase base = 1;
+  string detection_id = 2;
+  string asset_sn = 3;           // detecting asset SN
+  string object_type = 4;        // e.g. "DRONE", "PERSON", "VEHICLE"
+  float confidence = 5;
+  double detection_latitude = 6;
+  double detection_longitude = 7;
+  double detection_altitude = 8;
+  reserved 9;
+  reserved "mission_id";
+  optional string organization_id = 10;
+  reserved 11, 12, 13, 14;
+  reserved "mission_context", "task_context";
+  DynamicConfigProto runtime_config = 15;
+  optional string theatre_id = 16;
+  optional string capability_id = 17;
+}
+
+message DecisionResultProto {
+  string decision_id = 1;
+  string detection_id = 2;
+  optional string selected_asset_sn = 3;
+  optional string strategy_used = 4;
+  string status = 5;                        // DecisionStatus as string
+  repeated string considered_asset_sns = 6;
+  map<string, string> rejection_reasons = 7;
+  google.protobuf.Timestamp decided_at = 8;
+  reserved 9, 10, 11;
+  reserved "selected_mission_id", "selected_task_id";
+  DynamicConfigProto resolved_config = 12;
+  repeated DecisionActionProto selected_actions = 13;
+}
+
+message DecisionResponse {
+  bool has_errors = 1;
+  string tid = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    DecisionResultProto decision_result = 5;
+  }
+}
+
+
+// ========== ASSET SELECTION DRY RUN ==========
+
+message SimulateAssetSelectionRequest {
+  RequestBase base = 1;
+  // The organization whose assets and policies are asked; empty = system-wide (system admins only).
+  optional string organization_id = 2;
+  // Set for a detection-like scenario ("a DRONE was detected"); empty for a scheduled, manual or
+  // integration run, which carries no object type.
+  optional string object_type = 3;
+  optional double confidence = 4;
+  // The target position; leave both unset for a run that names none.
+  optional double latitude = 5;
+  optional double longitude = 6;
+  // A site (theatre) the run belongs to; when unset and a position is given, the organization's
+  // site containing the position is used, as for a real run.
+  optional string theatre_id = 7;
+  optional string capability_id = 8;
+  // The run's own priority (0..100) -- decides which busy assets it may take over. Default 50.
+  optional int32 priority = 9;
+}
+
+message AssetSelectionCandidateProto {
+  string sn = 1;
+  string asset_type = 2;
+  int32 battery_percent = 3;
+  bool available = 4;
+  // Priority of the unfinished run holding this asset, when one does.
+  optional int32 held_by_priority = 5;
+  optional double distance_meters = 6;
+  optional string theatre_id = 7;
+  // Why it was not chosen; empty for the chosen asset.
+  string reason = 8;
+}
+
+message AssetSelectionPolicyStepProto {
+  string policy_id = 1;
+  int32 priority = 2;
+  string strategy = 3;
+  // APPLIES_NOT (scope or a condition), NO_CANDIDATE (every asset rejected), NO_CHOICE (the
+  // strategy could not pick, e.g. NEAREST without a position), CHOSE, NOT_REACHED.
+  string outcome = 4;
+  string note = 5;
+  map<string, string> rejections = 6;
+  // Which group of assets was asked: a site's name, or empty for the rest of the fleet.
+  string level = 7;
+}
+
+message SimulateAssetSelectionResponse {
+  bool has_errors = 1;
+  string tid = 2;
+  optional GlobalErrorMessage error = 3;
+  optional string selected_asset_sn = 4;
+  optional string answered_by_policy_id = 5;
+  // One sentence: the answer, or why there is none.
+  string summary = 6;
+  repeated AssetSelectionPolicyStepProto steps = 7;
+  repeated AssetSelectionCandidateProto candidates = 8;
+  optional string theatre_id = 9;
+  // BUSY (every available asset busy with more important work), NO_POLICY, NO_ASSET, SELECTED.
+  string status = 10;
+}
+
+
+// ========== NO-FLY ZONE CHECK ==========
+
+message CheckFlightPathRequest {
+  // base.sn is the aircraft; its current position is read from its telemetry.
+  RequestBase base = 1;
+  // Whose zones; empty = the caller's organization.
+  optional string organization_id = 2;
+  // navigation.go_to (default) or flight.return_to_home.
+  optional string command_id = 3;
+  // The destination of a go_to; ignored for a return to home, which flies to the aircraft's home.
+  optional double latitude = 4;
+  optional double longitude = 5;
+  optional double altitude = 6;
+}
+
+enum FlightPathVerdict {
+  FLIGHT_PATH_VERDICT_UNSPECIFIED = 0;
+  // No active zone is touched.
+  FLIGHT_PATH_VERDICT_CLEAR = 1;
+  // Only ADVISORY zones are touched: it flies as commanded, with a warning.
+  FLIGHT_PATH_VERDICT_ADVISORY = 2;
+  // A REQUIRE_APPROVAL zone is touched: it waits for a person to approve it.
+  FLIGHT_PATH_VERDICT_REQUIRES_APPROVAL = 3;
+  // A HARD_BLOCK zone is crossed or contains the destination: refused as a direct command. A Skill
+  // flies `reroute` instead when it is set.
+  FLIGHT_PATH_VERDICT_BLOCKED = 4;
+}
+
+message FlightPathZoneHitProto {
+  string zone_id = 1;
+  string zone_name = 2;
+  ZoneEnforcementType enforcement = 3;
+  // The destination itself lies inside the zone (no detour can help).
+  bool destination_inside = 4;
+}
+
+message CheckFlightPathResponse {
+  bool has_errors = 1;
+  string tid = 2;
+  optional GlobalErrorMessage error = 3;
+  FlightPathVerdict verdict = 4;
+  // One sentence for the operator: the verdict and why.
+  string summary = 5;
+  repeated FlightPathZoneHitProto zones = 6;
+  // The detour around the HARD_BLOCK zones a Skill would fly, start to destination; empty when the
+  // straight line is clear or no detour exists.
+  repeated GeoPointProtoDTO reroute = 7;
+  // False when the aircraft's position is unknown -- only the destination could be checked.
+  bool position_known = 8;
+}
