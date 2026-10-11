@@ -10,7 +10,7 @@ package zqnt.capability.v3;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/zequent/zqnt-api-go/gen/zqnt/capability/v3;capabilityv3";
+option go_package = "github.com/zequent/zqnt-api-go/v3/gen/zqnt/capability/v3;capabilityv3";
 option java_multiple_files = true;
 option java_package = "com.zqnt.protos.capability.v3";
 

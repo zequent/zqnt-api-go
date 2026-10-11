@@ -496,8 +496,8 @@ const file_zqnt_common_v3_common_proto_rawDesc = "" +
 	"\x14ERROR_CATEGORY_ASSET\x10\x04\x12\x1a\n" +
 	"\x16ERROR_CATEGORY_SERVICE\x10\x05\x12\x1a\n" +
 	"\x16ERROR_CATEGORY_TIMEOUT\x10\x06\x12\x1c\n" +
-	"\x18ERROR_CATEGORY_NOT_FOUND\x10\aBY\n" +
-	"\x19com.zqnt.protos.common.v3P\x01Z:github.com/zequent/zqnt-api-go/gen/zqnt/common/v3;commonv3b\x06proto3"
+	"\x18ERROR_CATEGORY_NOT_FOUND\x10\aB\\\n" +
+	"\x19com.zqnt.protos.common.v3P\x01Z=github.com/zequent/zqnt-api-go/v3/gen/zqnt/common/v3;commonv3b\x06proto3"
 
 var (
 	file_zqnt_common_v3_common_proto_rawDescOnce sync.Once

@@ -7,10 +7,10 @@
 package proto
 
 import (
-	proto "github.com/zequent/zqnt-api-go/gen/common/detection/proto"
-	_ "github.com/zequent/zqnt-api-go/gen/common/proto"
-	proto2 "github.com/zequent/zqnt-api-go/gen/devicecontrol/contracts/proto"
-	proto1 "github.com/zequent/zqnt-api-go/gen/events/proto"
+	proto "github.com/zequent/zqnt-api-go/v3/gen/common/detection/proto"
+	_ "github.com/zequent/zqnt-api-go/v3/gen/common/proto"
+	proto2 "github.com/zequent/zqnt-api-go/v3/gen/devicecontrol/contracts/proto"
+	proto1 "github.com/zequent/zqnt-api-go/v3/gen/events/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

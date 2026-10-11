@@ -14,7 +14,7 @@
 package capabilityv3
 
 import (
-	v3 "github.com/zequent/zqnt-api-go/gen/zqnt/common/v3"
+	v3 "github.com/zequent/zqnt-api-go/v3/gen/zqnt/common/v3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -491,8 +491,8 @@ const file_zqnt_capability_v3_command_proto_rawDesc = "" +
 	"\x14COMMAND_STATE_FAILED\x10\x04\x12\x1a\n" +
 	"\x16COMMAND_STATE_REJECTED\x10\x05\x12\x1b\n" +
 	"\x17COMMAND_STATE_CANCELLED\x10\x06\x12\x1b\n" +
-	"\x17COMMAND_STATE_TIMED_OUT\x10\aBe\n" +
-	"\x1dcom.zqnt.protos.capability.v3P\x01ZBgithub.com/zequent/zqnt-api-go/gen/zqnt/capability/v3;capabilityv3b\x06proto3"
+	"\x17COMMAND_STATE_TIMED_OUT\x10\aBh\n" +
+	"\x1dcom.zqnt.protos.capability.v3P\x01ZEgithub.com/zequent/zqnt-api-go/v3/gen/zqnt/capability/v3;capabilityv3b\x06proto3"
 
 var (
 	file_zqnt_capability_v3_command_proto_rawDescOnce sync.Once

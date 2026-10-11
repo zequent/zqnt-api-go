@@ -40,7 +40,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Publishing version: ${VERSION}"
 
-      # The release artifact is the git tag itself: go get github.com/zequent/zqnt-api-go@vX.Y.Z.
+      # The release artifact is the git tag itself: go get github.com/zequent/zqnt-api-go/v3@vX.Y.Z.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:

@@ -8,11 +8,11 @@ package proto
 
 import (
 	context "context"
-	proto "github.com/zequent/zqnt-api-go/gen/common/base/proto"
-	proto2 "github.com/zequent/zqnt-api-go/gen/events/proto"
-	proto4 "github.com/zequent/zqnt-api-go/gen/execution/contracts/proto"
-	proto3 "github.com/zequent/zqnt-api-go/gen/media/proto"
-	proto1 "github.com/zequent/zqnt-api-go/gen/missionautonomy/contracts/proto"
+	proto "github.com/zequent/zqnt-api-go/v3/gen/common/base/proto"
+	proto2 "github.com/zequent/zqnt-api-go/v3/gen/events/proto"
+	proto4 "github.com/zequent/zqnt-api-go/v3/gen/execution/contracts/proto"
+	proto3 "github.com/zequent/zqnt-api-go/v3/gen/media/proto"
+	proto1 "github.com/zequent/zqnt-api-go/v3/gen/missionautonomy/contracts/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

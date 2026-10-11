@@ -8,8 +8,8 @@ package proto
 
 import (
 	context "context"
-	proto1 "github.com/zequent/zqnt-api-go/gen/common/detection/proto"
-	proto "github.com/zequent/zqnt-api-go/gen/devicecontrol/contracts/proto"
+	proto1 "github.com/zequent/zqnt-api-go/v3/gen/common/detection/proto"
+	proto "github.com/zequent/zqnt-api-go/v3/gen/devicecontrol/contracts/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

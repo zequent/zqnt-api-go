@@ -12,7 +12,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODULE="github.com/zequent/zqnt-api-go"
+MODULE="github.com/zequent/zqnt-api-go/v3"
 V2_DIR="$ROOT/proto/v2"
 V3_DIR="$ROOT/proto/v3"
 

@@ -1254,8 +1254,8 @@ const file_zqnt_capability_v3_capability_proto_rawDesc = "" +
 	" TELEMETRY_VALUE_TYPE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bTELEMETRY_VALUE_TYPE_NUMBER\x10\x01\x12\x1f\n" +
 	"\x1bTELEMETRY_VALUE_TYPE_STRING\x10\x02\x12 \n" +
-	"\x1cTELEMETRY_VALUE_TYPE_BOOLEAN\x10\x03Be\n" +
-	"\x1dcom.zqnt.protos.capability.v3P\x01ZBgithub.com/zequent/zqnt-api-go/gen/zqnt/capability/v3;capabilityv3b\x06proto3"
+	"\x1cTELEMETRY_VALUE_TYPE_BOOLEAN\x10\x03Bh\n" +
+	"\x1dcom.zqnt.protos.capability.v3P\x01ZEgithub.com/zequent/zqnt-api-go/v3/gen/zqnt/capability/v3;capabilityv3b\x06proto3"
 
 var (
 	file_zqnt_capability_v3_capability_proto_rawDescOnce sync.Once

@@ -1,4 +1,4 @@
-module github.com/zequent/zqnt-api-go
+module github.com/zequent/zqnt-api-go/v3
 
 go 1.25.0
 

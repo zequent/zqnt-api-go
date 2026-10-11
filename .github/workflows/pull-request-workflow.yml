@@ -47,6 +47,7 @@ jobs:
       - name: Install protoc 3.21.12 and the Go plugins
         run: |
           curl -fsSL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
+          mkdir -p "$HOME/.local/protoc"
           unzip -q /tmp/protoc.zip -d "$HOME/.local/protoc"
           echo "$HOME/.local/protoc/bin" >> "$GITHUB_PATH"
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
@@ -62,7 +63,7 @@ jobs:
   # Tags and pre-releases every PR build so it's individually go get-able for review/testing --
   # deliberately NOT a "v*"-shaped tag: release-workflow.yml triggers on tags: ["v*"], and this
   # must never accidentally fire that (a real production release is only ever an intentional
-  # `git tag vX.Y.Z && git push` by a maintainer). `go get .../zqnt-api-go@pr-<n>-<sha>`
+  # `git tag vX.Y.Z && git push` by a maintainer). `go get .../zqnt-api-go/v3@pr-<n>-<sha>`
   # still resolves fine -- Go accepts any git ref as a version query, converting non-semver tags to
   # a pseudo-version automatically.
   pr-preview:

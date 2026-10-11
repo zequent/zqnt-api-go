@@ -7,12 +7,12 @@
 package proto
 
 import (
-	proto1 "github.com/zequent/zqnt-api-go/gen/common/asset/proto"
-	proto "github.com/zequent/zqnt-api-go/gen/common/base/proto"
-	proto3 "github.com/zequent/zqnt-api-go/gen/common/detection/proto"
-	proto2 "github.com/zequent/zqnt-api-go/gen/devicecontrol/contracts/proto"
-	proto4 "github.com/zequent/zqnt-api-go/gen/missionautonomy/domain/types/proto"
-	proto5 "github.com/zequent/zqnt-api-go/gen/missionautonomy/dto/proto"
+	proto1 "github.com/zequent/zqnt-api-go/v3/gen/common/asset/proto"
+	proto "github.com/zequent/zqnt-api-go/v3/gen/common/base/proto"
+	proto3 "github.com/zequent/zqnt-api-go/v3/gen/common/detection/proto"
+	proto2 "github.com/zequent/zqnt-api-go/v3/gen/devicecontrol/contracts/proto"
+	proto4 "github.com/zequent/zqnt-api-go/v3/gen/missionautonomy/domain/types/proto"
+	proto5 "github.com/zequent/zqnt-api-go/v3/gen/missionautonomy/dto/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

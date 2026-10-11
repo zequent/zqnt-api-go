@@ -15,7 +15,7 @@ import "zqnt/capability/v3/capability.proto";
 import "zqnt/capability/v3/command.proto";
 import "zqnt/common/v3/common.proto";
 
-option go_package = "github.com/zequent/zqnt-api-go/gen/zqnt/edge/v3;edgev3";
+option go_package = "github.com/zequent/zqnt-api-go/v3/gen/zqnt/edge/v3;edgev3";
 option java_multiple_files = true;
 option java_package = "com.zqnt.protos.edge.v3";
 

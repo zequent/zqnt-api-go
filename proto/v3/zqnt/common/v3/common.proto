@@ -6,7 +6,7 @@ package zqnt.common.v3;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/zequent/zqnt-api-go/gen/zqnt/common/v3;commonv3";
+option go_package = "github.com/zequent/zqnt-api-go/v3/gen/zqnt/common/v3;commonv3";
 option java_multiple_files = true;
 option java_package = "com.zqnt.protos.common.v3";
 

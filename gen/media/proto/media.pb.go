@@ -7,8 +7,8 @@
 package proto
 
 import (
-	proto "github.com/zequent/zqnt-api-go/gen/common/base/proto"
-	_ "github.com/zequent/zqnt-api-go/gen/common/proto"
+	proto "github.com/zequent/zqnt-api-go/v3/gen/common/base/proto"
+	_ "github.com/zequent/zqnt-api-go/v3/gen/common/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"

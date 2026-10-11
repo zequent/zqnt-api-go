@@ -14,7 +14,7 @@ import "google/protobuf/timestamp.proto";
 import "zqnt/common/v3/common.proto";
 import "zqnt/edge/v3/edge_adapter_service.proto";
 
-option go_package = "github.com/zequent/zqnt-api-go/gen/zqnt/telemetry/v3;telemetryv3";
+option go_package = "github.com/zequent/zqnt-api-go/v3/gen/zqnt/telemetry/v3;telemetryv3";
 option java_multiple_files = true;
 option java_package = "com.zqnt.protos.telemetry.v3";
 

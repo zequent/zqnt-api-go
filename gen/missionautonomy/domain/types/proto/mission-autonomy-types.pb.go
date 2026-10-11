@@ -7,7 +7,7 @@
 package proto
 
 import (
-	proto "github.com/zequent/zqnt-api-go/gen/devicecontrol/contracts/proto"
+	proto "github.com/zequent/zqnt-api-go/v3/gen/devicecontrol/contracts/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"

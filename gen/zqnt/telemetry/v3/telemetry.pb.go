@@ -14,8 +14,8 @@
 package telemetryv3
 
 import (
-	v3 "github.com/zequent/zqnt-api-go/gen/zqnt/common/v3"
-	v31 "github.com/zequent/zqnt-api-go/gen/zqnt/edge/v3"
+	v3 "github.com/zequent/zqnt-api-go/v3/gen/zqnt/common/v3"
+	v31 "github.com/zequent/zqnt-api-go/v3/gen/zqnt/edge/v3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -1301,8 +1301,8 @@ const file_zqnt_telemetry_v3_telemetry_proto_rawDesc = "" +
 	"\x16TelemetryIngestService\x12m\n" +
 	"\x10PublishTelemetry\x12*.zqnt.telemetry.v3.PublishTelemetryRequest\x1a+.zqnt.telemetry.v3.PublishTelemetryResponse(\x01\x12p\n" +
 	"\x11PublishDetections\x12+.zqnt.telemetry.v3.PublishDetectionsRequest\x1a,.zqnt.telemetry.v3.PublishDetectionsResponse(\x01\x12d\n" +
-	"\rPublishAlerts\x12'.zqnt.telemetry.v3.PublishAlertsRequest\x1a(.zqnt.telemetry.v3.PublishAlertsResponse(\x01Bb\n" +
-	"\x1ccom.zqnt.protos.telemetry.v3P\x01Z@github.com/zequent/zqnt-api-go/gen/zqnt/telemetry/v3;telemetryv3b\x06proto3"
+	"\rPublishAlerts\x12'.zqnt.telemetry.v3.PublishAlertsRequest\x1a(.zqnt.telemetry.v3.PublishAlertsResponse(\x01Be\n" +
+	"\x1ccom.zqnt.protos.telemetry.v3P\x01ZCgithub.com/zequent/zqnt-api-go/v3/gen/zqnt/telemetry/v3;telemetryv3b\x06proto3"
 
 var (
 	file_zqnt_telemetry_v3_telemetry_proto_rawDescOnce sync.Once

@@ -16,8 +16,8 @@
 package edgev3
 
 import (
-	v31 "github.com/zequent/zqnt-api-go/gen/zqnt/capability/v3"
-	v3 "github.com/zequent/zqnt-api-go/gen/zqnt/common/v3"
+	v31 "github.com/zequent/zqnt-api-go/v3/gen/zqnt/capability/v3"
+	v3 "github.com/zequent/zqnt-api-go/v3/gen/zqnt/common/v3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -1050,8 +1050,8 @@ const file_zqnt_edge_v3_edge_adapter_service_proto_rawDesc = "" +
 	"\x10StreamDetections\x12%.zqnt.edge.v3.StreamDetectionsRequest\x1a&.zqnt.edge.v3.StreamDetectionsResponse0\x012\xe9\x01\n" +
 	"\x12EdgeGatewayService\x12g\n" +
 	"\x12ReportCapabilities\x12'.zqnt.edge.v3.ReportCapabilitiesRequest\x1a(.zqnt.edge.v3.ReportCapabilitiesResponse\x12j\n" +
-	"\x13PublishCommandEvent\x12(.zqnt.edge.v3.PublishCommandEventRequest\x1a).zqnt.edge.v3.PublishCommandEventResponseBS\n" +
-	"\x17com.zqnt.protos.edge.v3P\x01Z6github.com/zequent/zqnt-api-go/gen/zqnt/edge/v3;edgev3b\x06proto3"
+	"\x13PublishCommandEvent\x12(.zqnt.edge.v3.PublishCommandEventRequest\x1a).zqnt.edge.v3.PublishCommandEventResponseBV\n" +
+	"\x17com.zqnt.protos.edge.v3P\x01Z9github.com/zequent/zqnt-api-go/v3/gen/zqnt/edge/v3;edgev3b\x06proto3"
 
 var (
 	file_zqnt_edge_v3_edge_adapter_service_proto_rawDescOnce sync.Once

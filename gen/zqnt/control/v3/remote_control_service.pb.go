@@ -11,9 +11,9 @@
 package controlv3
 
 import (
-	v31 "github.com/zequent/zqnt-api-go/gen/zqnt/capability/v3"
-	v3 "github.com/zequent/zqnt-api-go/gen/zqnt/common/v3"
-	v32 "github.com/zequent/zqnt-api-go/gen/zqnt/edge/v3"
+	v31 "github.com/zequent/zqnt-api-go/v3/gen/zqnt/capability/v3"
+	v3 "github.com/zequent/zqnt-api-go/v3/gen/zqnt/common/v3"
+	v32 "github.com/zequent/zqnt-api-go/v3/gen/zqnt/edge/v3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -592,8 +592,8 @@ const file_zqnt_control_v3_remote_control_service_proto_rawDesc = "" +
 	"\x0eExecuteCommand\x12&.zqnt.control.v3.ExecuteCommandRequest\x1a'.zqnt.control.v3.ExecuteCommandResponse\x12^\n" +
 	"\rCancelCommand\x12%.zqnt.control.v3.CancelCommandRequest\x1a&.zqnt.control.v3.CancelCommandResponse\x12o\n" +
 	"\x12WatchCommandEvents\x12*.zqnt.control.v3.WatchCommandEventsRequest\x1a+.zqnt.control.v3.WatchCommandEventsResponse0\x01\x12r\n" +
-	"\x13StreamManualControl\x12+.zqnt.control.v3.StreamManualControlRequest\x1a,.zqnt.control.v3.StreamManualControlResponse(\x01B\\\n" +
-	"\x1acom.zqnt.protos.control.v3P\x01Z<github.com/zequent/zqnt-api-go/gen/zqnt/control/v3;controlv3b\x06proto3"
+	"\x13StreamManualControl\x12+.zqnt.control.v3.StreamManualControlRequest\x1a,.zqnt.control.v3.StreamManualControlResponse(\x01B_\n" +
+	"\x1acom.zqnt.protos.control.v3P\x01Z?github.com/zequent/zqnt-api-go/v3/gen/zqnt/control/v3;controlv3b\x06proto3"
 
 var (
 	file_zqnt_control_v3_remote_control_service_proto_rawDescOnce sync.Once

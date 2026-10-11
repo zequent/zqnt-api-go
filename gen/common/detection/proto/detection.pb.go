@@ -7,7 +7,7 @@
 package proto
 
 import (
-	proto "github.com/zequent/zqnt-api-go/gen/common/base/proto"
+	proto "github.com/zequent/zqnt-api-go/v3/gen/common/base/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

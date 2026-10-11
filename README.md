@@ -6,7 +6,7 @@ the telemetry mapping between the 2.x and 3.x contracts. The Go Edge SDK
 ([`zqnt-client-sdk-go`](https://github.com/Zequent/zqnt-client-sdk-go)) depend on this module only.
 
 ```bash
-go get github.com/zequent/zqnt-api-go@latest
+go get github.com/zequent/zqnt-api-go/v3@latest
 ```
 
 ## Packages
@@ -21,7 +21,7 @@ go get github.com/zequent/zqnt-api-go@latest
 | `gen/common/...`, `gen/edge/sdk/proto`, `gen/livedata/proto`, `gen/remotecontrol/proto`, `gen/connector/proto`, `gen/missionautonomy/...`, `gen/execution/...`, `gen/devicecontrol/...`, `gen/events/proto`, `gen/media/proto` | the frozen 2.x contracts (package `zqnt`), wire-compatible with 2.0.0 |
 | `telemetry` | v2 `Telemetry` ⇄ v3 `TelemetrySample`, and the catalog of telemetry detail keys |
 
-All import paths are below `github.com/zequent/zqnt-api-go/`. The `.proto` files are in
+All import paths are below `github.com/zequent/zqnt-api-go/v3/`. The `.proto` files are in
 [`proto/`](proto): `proto/v2` and `proto/v3` are the two proto roots (`-I proto/v3` for
 `import "zqnt/common/v3/common.proto"`).
 
@@ -35,8 +35,16 @@ regenerates `gen/` on every PR and fails if it differs.
 
 ## Versions
 
-Releases are `vX.Y.Z` tags. Every PR build is also tagged `pr-<n>-<sha>` and can be fetched with
-`go get github.com/zequent/zqnt-api-go@pr-<n>-<sha>` for review.
+The module starts at major version 3, matching platform 3.0, so its path carries the `/v3`
+suffix. Releases are `v3.Y.Z` tags, cut by the maintainer. Until then there are only previews:
+every commit of a PR resolves to a Go pseudo-version `v3.0.0-<timestamp>-<sha>`, e.g.
+
+```bash
+go get github.com/zequent/zqnt-api-go/v3@<commit>
+```
+
+PR builds are also tagged `pr-<n>-<sha>` for convenience; `go get` turns that into the same
+pseudo-version. Move to the release tag once it exists.
 
 ## License
 
