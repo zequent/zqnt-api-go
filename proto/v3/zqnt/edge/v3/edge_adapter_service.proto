@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+// The two directions between the platform and an edge adapter.
+//
+//   EdgeAdapterService  implemented by every adapter (through the edge SDK), called by the platform.
+//   EdgeGatewayService  implemented by the platform, called by adapters to report what they know.
+//
+// There is no per-command RPC: takeoff, go-to, cover, stream, reboot, vendor commands all go
+// through ExecuteCommand with a dotted command id. Only manual control and detections keep their
+// own streaming RPCs, because they are continuous high-rate streams, not commands.
+package zqnt.edge.v3;
+
+import "google/protobuf/timestamp.proto";
+import "zqnt/capability/v3/capability.proto";
+import "zqnt/capability/v3/command.proto";
+import "zqnt/common/v3/common.proto";
+
+option go_package = "github.com/zequent/zqnt-api-go/gen/zqnt/edge/v3;edgev3";
+option java_multiple_files = true;
+option java_package = "com.zqnt.protos.edge.v3";
+
+service EdgeAdapterService {
+  // What the asset can do now. Derived by the SDK from the registered command handlers.
+  rpc GetCapabilities(GetCapabilitiesRequest) returns (GetCapabilitiesResponse);
+  // Runs one command. Returns SUCCEEDED/FAILED/REJECTED for quick commands, ACCEPTED for long
+  // ones, whose completion follows through EdgeGatewayService.PublishCommandEvent.
+  rpc ExecuteCommand(ExecuteCommandRequest) returns (ExecuteCommandResponse);
+  rpc CancelCommand(CancelCommandRequest) returns (CancelCommandResponse);
+  // Continuous stick input while manual control (`flight.manual.enter`) is active.
+  rpc StreamManualControl(stream StreamManualControlRequest) returns (StreamManualControlResponse);
+  // Detections of the asset's onboard or attached detector.
+  rpc StreamDetections(StreamDetectionsRequest) returns (stream StreamDetectionsResponse);
+}
+
+service EdgeGatewayService {
+  // The full capability snapshot of an asset, sent on start and whenever it changes.
+  rpc ReportCapabilities(ReportCapabilitiesRequest) returns (ReportCapabilitiesResponse);
+  // Progress and completion of an ACCEPTED command.
+  rpc PublishCommandEvent(PublishCommandEventRequest) returns (PublishCommandEventResponse);
+}
+
+message GetCapabilitiesRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  zqnt.common.v3.AssetRef asset = 2;
+  // Unset = every target of the asset.
+  zqnt.capability.v3.Target target = 3;
+}
+
+message GetCapabilitiesResponse {
+  zqnt.capability.v3.CapabilitySet capabilities = 1;
+}
+
+message ExecuteCommandRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  zqnt.capability.v3.Command command = 2;
+  // Assigned by the platform; the adapter uses it on every event of this run.
+  string command_execution_id = 3;
+}
+
+message ExecuteCommandResponse {
+  zqnt.capability.v3.CommandResult result = 1;
+}
+
+message CancelCommandRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  string command_execution_id = 2;
+  string reason = 3;
+}
+
+message CancelCommandResponse {
+  zqnt.capability.v3.CommandResult result = 1;
+}
+
+message ManualControlInput {
+  // -1..1 each.
+  float roll = 1;
+  float pitch = 2;
+  float yaw = 3;
+  float throttle = 4;
+  optional float gimbal_pitch = 5;
+}
+
+message StreamManualControlRequest {
+  zqnt.common.v3.AssetRef asset = 1;
+  ManualControlInput input = 2;
+  google.protobuf.Timestamp sent_at = 3;
+}
+
+message StreamManualControlResponse {
+  // Inputs accepted over the whole stream.
+  int64 accepted_inputs = 1;
+  zqnt.common.v3.Error error = 2;
+}
+
+message StreamDetectionsRequest {
+  zqnt.common.v3.AssetRef asset = 1;
+  // Unset = the asset's primary stream.
+  string stream_url = 2;
+}
+
+message BoundingBox {
+  // Normalised 0..1 relative to the frame.
+  float x = 1;
+  float y = 2;
+  float width = 3;
+  float height = 4;
+}
+
+message Detection {
+  string object_id = 1;
+  string object_type = 2;
+  float confidence = 3;
+  BoundingBox bounding_box = 4;
+  zqnt.common.v3.GeoPoint position = 5;
+}
+
+message StreamDetectionsResponse {
+  zqnt.common.v3.AssetRef asset = 1;
+  repeated Detection detections = 2;
+  string stream_url = 3;
+  google.protobuf.Timestamp observed_at = 4;
+}
+
+message ReportCapabilitiesRequest {
+  zqnt.capability.v3.CapabilitySet capabilities = 1;
+}
+
+message ReportCapabilitiesResponse {
+  string accepted_revision = 1;
+}
+
+message PublishCommandEventRequest {
+  zqnt.capability.v3.CommandEvent event = 1;
+}
+
+message PublishCommandEventResponse {}

@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.remotecontrol.proto";
+option java_outer_classname = "RemoteControlProto";
+option go_package = "gen/remotecontrol/proto";
+
+// RemoteControlService is the client-facing command gateway.
+// It uses the same command contracts as EdgeAdapterService so SDKs and adapters
+// can share validation, mapping, tests, and documentation.
+service RemoteControlService {
+  // Capability Management
+  // Edge adapters push complete payload and capability snapshots on a schedule.
+  rpc ReportAssetRuntime(ReportAssetRuntimeRequest) returns (ReportAssetRuntimeResponse);
+  // Clients discover detected payloads and their current capabilities atomically.
+  rpc GetAssetRuntime(GetAssetRuntimeRequest) returns (AssetRuntimeResponse);
+  // Clients read the latest snapshot maintained by Remote Control.
+  rpc GetCapabilities(AssetCapabilitiesRequest) returns (AssetCapabilitiesResponse);
+
+  // Flight Control
+  rpc TakeOff(CoordinateCommandRequest) returns (CommandResponse);
+  rpc GoTo(CoordinateCommandRequest) returns (CommandResponse);
+  rpc ReturnToHome(ReturnToHomeCommandRequest) returns (CommandResponse);
+
+  // Manual Control
+  rpc EnterManualControl(ManualControlCommandRequest) returns (CommandResponse);
+  rpc ExitManualControl(ManualControlCommandRequest) returns (CommandResponse);
+  rpc ManualControlInput(stream ManualControlInputCommandRequest) returns (CommandResponse);
+  rpc LookAt(LookAtCommandRequest) returns (CommandResponse);
+  rpc CapturePhoto(EmptyCommandRequest) returns (CommandResponse);
+  rpc LiveStreamSplitScreen(ToggleCommandRequest) returns (CommandResponse);
+
+  // Detection
+  rpc ControlDetection(DetectionControlCommandRequest) returns (CommandResponse);
+
+  // Dock commands
+  rpc OpenCover(EmptyCommandRequest) returns (CommandResponse);
+  rpc CloseCover(CloseCoverCommandRequest) returns (CommandResponse);
+  rpc StartCharging(EmptyCommandRequest) returns (CommandResponse);
+  rpc StopCharging(EmptyCommandRequest) returns (CommandResponse);
+
+  // Asset Management
+  rpc RebootAsset(EmptyCommandRequest) returns (CommandResponse);
+  rpc BootSubAsset(ToggleCommandRequest) returns (CommandResponse);
+
+  // Debug & Maintenance
+  rpc SetRemoteDebugMode(ToggleCommandRequest) returns (CommandResponse);
+  rpc ChangeAcMode(ChangeAcModeCommandRequest) returns (CommandResponse);
+
+  // Camera
+  rpc ChangeLens(ChangeCameraLensCommandRequest) returns (CommandResponse);
+  rpc ChangeZoom(ChangeCameraZoomCommandRequest) returns (CommandResponse);
+
+  // Custom / Integrator-defined commands
+  rpc SendCustomCommand(CustomCommandRequest) returns (CustomCommandResponse);
+}
