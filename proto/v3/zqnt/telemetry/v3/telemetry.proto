@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+// Live data of assets: telemetry, detections and alerts. Adapters publish over
+// TelemetryIngestService, applications watch over TelemetryService.
+//
+// A sample has the fields every asset shares; everything device-specific is in `details`, under
+// the keys the asset declares in its capabilities (CapabilitySet.telemetry_fields). A new device
+// type needs no contract change.
+package zqnt.telemetry.v3;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "zqnt/common/v3/common.proto";
+import "zqnt/edge/v3/edge_adapter_service.proto";
+
+option go_package = "github.com/zequent/zqnt-api-go/v3/gen/zqnt/telemetry/v3;telemetryv3";
+option java_multiple_files = true;
+option java_package = "com.zqnt.protos.telemetry.v3";
+
+service TelemetryService {
+  rpc WatchTelemetry(WatchTelemetryRequest) returns (stream WatchTelemetryResponse);
+  rpc WatchDetections(WatchDetectionsRequest) returns (stream WatchDetectionsResponse);
+  rpc WatchAlerts(WatchAlertsRequest) returns (stream WatchAlertsResponse);
+}
+
+service TelemetryIngestService {
+  rpc PublishTelemetry(stream PublishTelemetryRequest) returns (PublishTelemetryResponse);
+  rpc PublishDetections(stream PublishDetectionsRequest) returns (PublishDetectionsResponse);
+  rpc PublishAlerts(stream PublishAlertsRequest) returns (PublishAlertsResponse);
+}
+
+message TelemetrySample {
+  zqnt.common.v3.AssetRef asset = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  // Altitude above sea level.
+  zqnt.common.v3.GeoPoint position = 3;
+  // Metres above the takeoff point.
+  optional double relative_altitude = 4;
+  // Degrees clockwise from true north.
+  optional double heading_degrees = 5;
+  // m/s.
+  optional double horizontal_speed = 6;
+  // m/s, positive up.
+  optional double vertical_speed = 7;
+  optional double battery_percent = 8;
+  google.protobuf.Struct details = 9;
+}
+
+enum SourceState {
+  SOURCE_STATE_UNSPECIFIED = 0;
+  SOURCE_STATE_ONLINE = 1;
+  // No sample for longer than the asset's freshness window.
+  SOURCE_STATE_STALE = 2;
+  SOURCE_STATE_NO_DATA = 3;
+}
+
+message SourceStatus {
+  zqnt.common.v3.AssetRef asset = 1;
+  SourceState state = 2;
+  google.protobuf.Timestamp observed_at = 3;
+  google.protobuf.Timestamp last_sample_at = 4;
+}
+
+message DetectionBatch {
+  zqnt.common.v3.AssetRef asset = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  string stream_url = 3;
+  repeated zqnt.edge.v3.Detection detections = 4;
+}
+
+enum AlertSeverity {
+  ALERT_SEVERITY_UNSPECIFIED = 0;
+  ALERT_SEVERITY_INFO = 1;
+  ALERT_SEVERITY_WARNING = 2;
+  ALERT_SEVERITY_CRITICAL = 3;
+}
+
+// Something the asset reports on its own, e.g. a dock's rain warning or a motor fault.
+message Alert {
+  zqnt.common.v3.AssetRef asset = 1;
+  google.protobuf.Timestamp occurred_at = 2;
+  AlertSeverity severity = 3;
+  // Stable, machine-readable, e.g. "dock.rain" or "vendor.dji.hms.0x16100083".
+  string code = 4;
+  string message = 5;
+  google.protobuf.Struct details = 6;
+}
+
+message WatchTelemetryRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  // Empty = every asset of the caller's organization.
+  repeated zqnt.common.v3.AssetRef assets = 2;
+  // At most one sample per asset per interval; unset = every sample.
+  google.protobuf.Duration min_interval = 3;
+}
+
+message WatchTelemetryResponse {
+  oneof item {
+    TelemetrySample sample = 1;
+    SourceStatus source_status = 2;
+    // Sent while nothing else is, so a client can tell a quiet stream from a dead one.
+    google.protobuf.Timestamp heartbeat = 3;
+  }
+}
+
+message WatchDetectionsRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  // Empty = every asset of the caller's organization.
+  repeated zqnt.common.v3.AssetRef assets = 2;
+}
+
+message WatchDetectionsResponse {
+  oneof item {
+    DetectionBatch batch = 1;
+    google.protobuf.Timestamp heartbeat = 2;
+  }
+}
+
+message WatchAlertsRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  // Empty = every asset of the caller's organization.
+  repeated zqnt.common.v3.AssetRef assets = 2;
+  // Unset = every severity.
+  AlertSeverity min_severity = 3;
+}
+
+message WatchAlertsResponse {
+  oneof item {
+    Alert alert = 1;
+    google.protobuf.Timestamp heartbeat = 2;
+  }
+}
+
+message PublishTelemetryRequest {
+  TelemetrySample sample = 1;
+}
+
+message PublishTelemetryResponse {
+  int64 accepted = 1;
+  int64 rejected = 2;
+}
+
+message PublishDetectionsRequest {
+  DetectionBatch batch = 1;
+}
+
+message PublishDetectionsResponse {
+  int64 accepted = 1;
+  int64 rejected = 2;
+}
+
+message PublishAlertsRequest {
+  Alert alert = 1;
+}
+
+message PublishAlertsResponse {
+  int64 accepted = 1;
+  int64 rejected = 2;
+}

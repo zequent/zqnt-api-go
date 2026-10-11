@@ -1,0 +1,14 @@
+*.test
+*.out
+vendor/
+
+.idea/
+.vscode/
+.DS_Store
+
+# Secrets and local credentials: never committed (SEC-3). .env.example is the template.
+.env*
+!.env.example
+*.zqnt
+kubeconfig*
+*.pem

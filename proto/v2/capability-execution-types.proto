@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package zqnt;
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.execution.proto";
+option java_outer_classname = "CapabilityExecutionTypesProto";
+option go_package = "gen/execution/domain/types/proto";
+
+enum ExecutionModeProto {
+  EXECUTION_MODE_UNSPECIFIED = 0;
+  EXECUTION_MODE_SIMPLE = 1;
+  EXECUTION_MODE_APPLICATION = 2;
+}
+
+enum SkillExecutionStatusProto {
+  // BLOCKED is retired: nothing ever set it. An execution waiting for a human sits at RUNNING with
+  // its approval node active, because ExecutionGraphStateMachine's requireStatus(RUNNING) would
+  // refuse every transition out of any other status — so the console reads the waiting state off
+  // the active node's type instead, which is where it was always coming from. Reserved rather than
+  // reused: a stored execution somewhere may still carry the number 6, and giving it a new meaning
+  // would silently relabel it.
+  reserved 6;
+  reserved "SKILL_EXECUTION_STATUS_BLOCKED";
+  SKILL_EXECUTION_STATUS_UNSPECIFIED = 0;
+  SKILL_EXECUTION_STATUS_ACCEPTED = 1;
+  SKILL_EXECUTION_STATUS_PLANNING = 2;
+  SKILL_EXECUTION_STATUS_READY = 3;
+  SKILL_EXECUTION_STATUS_RUNNING = 4;
+  SKILL_EXECUTION_STATUS_PAUSED = 5;
+  SKILL_EXECUTION_STATUS_SUCCEEDED = 7;
+  SKILL_EXECUTION_STATUS_FAILED = 8;
+  SKILL_EXECUTION_STATUS_CANCELLING = 9;
+  SKILL_EXECUTION_STATUS_CANCELLED = 10;
+}
+
+enum ExecutionNodeStatusProto {
+  EXECUTION_NODE_STATUS_UNSPECIFIED = 0;
+  EXECUTION_NODE_STATUS_PENDING = 1;
+  EXECUTION_NODE_STATUS_READY = 2;
+  EXECUTION_NODE_STATUS_RUNNING = 3;
+  EXECUTION_NODE_STATUS_PAUSED = 4;
+  EXECUTION_NODE_STATUS_BLOCKED = 5;
+  EXECUTION_NODE_STATUS_SUCCEEDED = 6;
+  EXECUTION_NODE_STATUS_FAILED = 7;
+  EXECUTION_NODE_STATUS_SKIPPED = 8;
+  EXECUTION_NODE_STATUS_CANCELLED = 9;
+}
+
+enum ExecutionFailureStrategyProto {
+  EXECUTION_FAILURE_STRATEGY_UNSPECIFIED = 0;
+  EXECUTION_FAILURE_STRATEGY_STOP = 1;
+  EXECUTION_FAILURE_STRATEGY_RETRY = 2;
+  EXECUTION_FAILURE_STRATEGY_CONTINUE = 3;
+  EXECUTION_FAILURE_STRATEGY_COMPENSATE = 4;
+}
+
+// Which deployment channel a published Application version is designated for. Distinct from
+// ApplicationScopeTypeProto (which asset/org/theatre a version applies to) — this is "is this the
+// version executions and the catalog should actually pick up right now," not "for whom."
+enum ApplicationEnvironmentProto {
+  APPLICATION_ENVIRONMENT_UNSPECIFIED = 0;
+  APPLICATION_ENVIRONMENT_STAGING = 1;
+  APPLICATION_ENVIRONMENT_PRODUCTION = 2;
+}
+
+enum ApplicationScopeTypeProto {
+  APPLICATION_SCOPE_TYPE_UNSPECIFIED = 0;
+  APPLICATION_SCOPE_TYPE_GLOBAL = 1;
+  APPLICATION_SCOPE_TYPE_ORGANIZATION = 2;
+  APPLICATION_SCOPE_TYPE_ASSET = 3;
+  APPLICATION_SCOPE_TYPE_LOCATION = 4;
+  APPLICATION_SCOPE_TYPE_THEATRE = 5;
+}
+
+enum ExecutionConfigScopeTypeProto {
+  EXECUTION_CONFIG_SCOPE_TYPE_UNSPECIFIED = 0;
+  EXECUTION_CONFIG_SCOPE_TYPE_GLOBAL = 1;
+  EXECUTION_CONFIG_SCOPE_TYPE_SKILL = 2;
+  EXECUTION_CONFIG_SCOPE_TYPE_ORGANIZATION = 3;
+  EXECUTION_CONFIG_SCOPE_TYPE_THEATRE = 4;
+  EXECUTION_CONFIG_SCOPE_TYPE_ASSET = 5;
+}
+
+enum ExecutionNodeTypeProto {
+  EXECUTION_NODE_TYPE_UNSPECIFIED = 0;
+  EXECUTION_NODE_TYPE_COMMAND = 1;
+  EXECUTION_NODE_TYPE_SKILL = 2;
+  EXECUTION_NODE_TYPE_CONDITION = 3;
+  EXECUTION_NODE_TYPE_PARALLEL_GATEWAY = 4;
+  EXECUTION_NODE_TYPE_JOIN_GATEWAY = 5;
+  EXECUTION_NODE_TYPE_WAIT = 6;
+  EXECUTION_NODE_TYPE_EVENT_WAIT = 7;
+  EXECUTION_NODE_TYPE_HUMAN_APPROVAL = 8;
+  EXECUTION_NODE_TYPE_END = 9;
+  // Asks the AI assistant during the run (zqnt-core #164). Added for the engine, which runs on these
+  // messages: same number as zqnt.application.v3.NodeType.NODE_TYPE_AI.
+  EXECUTION_NODE_TYPE_AI = 10;
+}
+
+enum ExecutionEdgeTypeProto {
+  EXECUTION_EDGE_TYPE_UNSPECIFIED = 0;
+  EXECUTION_EDGE_TYPE_NORMAL = 1;
+  EXECUTION_EDGE_TYPE_SUCCESS = 2;
+  EXECUTION_EDGE_TYPE_FAILURE = 3;
+  EXECUTION_EDGE_TYPE_TIMEOUT = 4;
+  EXECUTION_EDGE_TYPE_COMPENSATION = 5;
+}
+
+enum ExecutionConditionOperatorProto {
+  EXECUTION_CONDITION_OPERATOR_UNSPECIFIED = 0;
+  EXECUTION_CONDITION_OPERATOR_EQUALS = 1;
+  EXECUTION_CONDITION_OPERATOR_NOT_EQUALS = 2;
+  EXECUTION_CONDITION_OPERATOR_GREATER_THAN = 3;
+  EXECUTION_CONDITION_OPERATOR_GREATER_THAN_OR_EQUAL = 4;
+  EXECUTION_CONDITION_OPERATOR_LESS_THAN = 5;
+  EXECUTION_CONDITION_OPERATOR_LESS_THAN_OR_EQUAL = 6;
+  EXECUTION_CONDITION_OPERATOR_IN = 7;
+  EXECUTION_CONDITION_OPERATOR_CONTAINS = 8;
+  EXECUTION_CONDITION_OPERATOR_EXISTS = 9;
+  EXECUTION_CONDITION_OPERATOR_MATCHES = 10;
+}
+
+enum ExecutionConditionGroupOperatorProto {
+  EXECUTION_CONDITION_GROUP_OPERATOR_UNSPECIFIED = 0;
+  EXECUTION_CONDITION_GROUP_OPERATOR_AND = 1;
+  EXECUTION_CONDITION_GROUP_OPERATOR_OR = 2;
+}
+
+enum ExecutionJoinModeProto {
+  EXECUTION_JOIN_MODE_UNSPECIFIED = 0;
+  EXECUTION_JOIN_MODE_ALL = 1;
+  EXECUTION_JOIN_MODE_ANY = 2;
+}
+
+enum SkillExecutionEventTypeProto {
+  SKILL_EXECUTION_EVENT_TYPE_UNSPECIFIED = 0;
+  SKILL_EXECUTION_EVENT_TYPE_CREATED = 1;
+  SKILL_EXECUTION_EVENT_TYPE_PLANNED = 2;
+  SKILL_EXECUTION_EVENT_TYPE_STARTED = 3;
+  SKILL_EXECUTION_EVENT_TYPE_NODE_STARTED = 4;
+  SKILL_EXECUTION_EVENT_TYPE_NODE_PROGRESS = 5;
+  SKILL_EXECUTION_EVENT_TYPE_NODE_COMPLETED = 6;
+  SKILL_EXECUTION_EVENT_TYPE_NODE_FAILED = 7;
+  SKILL_EXECUTION_EVENT_TYPE_PAUSED = 8;
+  SKILL_EXECUTION_EVENT_TYPE_RESUMED = 9;
+  SKILL_EXECUTION_EVENT_TYPE_BLOCKED = 10;
+  SKILL_EXECUTION_EVENT_TYPE_COMPLETED = 11;
+  SKILL_EXECUTION_EVENT_TYPE_FAILED = 12;
+  SKILL_EXECUTION_EVENT_TYPE_CANCELLED = 13;
+  // Something an operator has to watch that did not stop the run -- e.g. the automatic return home
+  // after a failed flight crosses a no-fly zone the device will fly through on its own. The text is
+  // in the event's error.error_message and on the node's warnings.
+  SKILL_EXECUTION_EVENT_TYPE_WARNING = 14;
+  // The platform stepped in for safety or asks an operator to -- e.g. it is sending a low-battery
+  // aircraft home around the no-fly zones before the firmware's own straight return, or it cannot
+  // and an operator must act. Not a failure. execution_id is the platform's own return run, or
+  // empty when the alert stands alone (no run was started); asset_sn always names the aircraft.
+  // data carries kind (e.g. "low_battery_return"), title and the figures behind the decision;
+  // error.error_message the human-readable text.
+  SKILL_EXECUTION_EVENT_TYPE_SAFETY_ALERT = 15;
+}

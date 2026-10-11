@@ -1,0 +1,245 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.common.proto";
+option java_outer_classname = "CommonAssetProto";
+option go_package = "gen/common/asset/proto";
+
+enum ManualControlStateEnum{
+  MANUAL_CONTROL_STATE_DISCONNECTED = 0;
+  MANUAL_CONTROL_STATE_CONNECTING = 1;
+  MANUAL_CONTROL_STATE_CONNECTED = 2;
+}
+
+enum RainfallEnum{
+  RAINFALL_NO = 0;
+  RAINFALL_LIGHT = 1;
+  RAINFALL_MODERATE = 2;
+  RAINFALL_HEAVY = 3;
+}
+
+enum NetworkTypeEnum{
+  NETWORK_TYPE_4_G = 0;
+  NETWORK_TYPE_ETHERNET = 1;
+}
+
+enum AssetCoverStateEnum{
+  COVER_STATE_CLOSED = 0;
+  COVER_STATE_OPENED = 1;
+  COVER_STATE_HALF_OPEN = 2;
+  COVER_STATE_ABNORMAL = 3;
+}
+
+enum NetworkStateQualityEnum{
+  NETWORK_STATE_QUALITY_NO_SIGNAL = 0;
+  NETWORK_STATE_QUALITY_BAD = 1;
+  NETWORK_STATE_QUALITY_POOR = 2;
+  NETWORK_STATE_QUALITY_FAIR = 3;
+  NETWORK_STATE_QUALITY_GOOD = 4;
+  NETWORK_STATE_QUALITY_EXCELLENT = 5;
+}
+
+enum AssetAirConditionerStateEnum{
+  AIR_CONDITIONER_IDLE = 0;
+  AIR_CONDITIONER_COOL = 1;
+  AIR_CONDITIONER_HEAT = 2;
+  AIR_CONDITIONER_DEHUMIDIFICATION = 3;
+  AIR_CONDITIONER_COOLING_EXIT = 4;
+  AIR_CONDITIONER_HEATING_EXIT = 5;
+  AIR_CONDITIONER_DEHUMIDIFICATION_EXIT = 6;
+  AIR_CONDITIONER_COOLING_READY = 7;
+  AIR_CONDITIONER_HEATING_READY = 8;
+  AIR_CONDITIONER_DEHUMIDIFICATION_READY = 9;
+  AIR_CONDITIONER_PREPARING_FOR_AIR_COOLING = 10;
+  AIR_CONDITIONER_AIR_COOLING_IN_PROGRESS = 11;
+  AIR_CONDITIONER_AIR_COOLING_EXITING = 12;
+  AIR_CONDITIONER_PREPARING_FOR_DEFOGGER = 13;
+  AIR_CONDITIONER_DEFOGGER_IN_PROGRESS = 14;
+  AIR_CONDITIONER_DEFOGGER_EXITING = 15;
+
+}
+
+enum AssetMode{
+  ASSET_MODE_IDLE = 0;
+  ASSET_MODE_DEBUGGING = 1;
+  ASSET_MODE_REMOTE_DEBUGGING = 2;
+  ASSET_MODE_UPGRADING = 3;
+  ASSET_MODE_WORKING = 4;
+  ASSET_MODE_TO_BE_CALIBRATED = 5;
+  ASSET_MODE_OFFLINE = 6;
+}
+
+enum SubAssetMode{
+  SUBASSET_MODE_IDLE = 0;
+  SUBASSET_MODE_TAKEOFF_PREPARE = 1;
+  SUBASSET_MODE_TAKEOFF_FINISHED = 2;
+  SUBASSET_MODE_MANUAL = 3;
+  SUBASSET_MODE_TAKEOFF_AUTO = 4;
+  SUBASSET_MODE_WAYLINE = 5;
+  SUBASSET_MODE_PANORAMIC_SHOT = 6;
+  SUBASSET_MODE_ACTIVE_TRACK = 7;
+  SUBASSET_MODE_ADS_B_AVOIDANCE = 8;
+  SUBASSET_MODE_RETURN_AUTO = 9;
+  SUBASSET_MODE_LANDING_AUTO = 10;
+  SUBASSET_MODE_LANDING_FORCE = 11;
+  SUBASSET_MODE_LANDING_THREE_PROPELLER = 12;
+  SUBASSET_MODE_UPGRADING = 13;
+  SUBASSET_MODE_DISCONNECTED = 14;
+  SUBASSET_MODE_APAS = 15;
+  SUBASSET_MODE_VIRTUAL_JOYSTICK = 16;
+  SUBASSET_MODE_LIVE_FLIGHT_CONTROLS = 17;
+  SUBASSET_MODE_AERIAL_RTK_FIXED = 18;
+  SUBASSET_MODE_DOCK_SITE_EVALUATION = 19;
+  SUBASSET_MODE_POI = 20;
+}
+
+enum AssetTypeEnum{
+  ASSET_TYPE_UNKNOWN = 0;
+  ASSET_TYPE_AIRCRAFT = 1;
+  ASSET_TYPE_DOCK = 2;
+  ASSET_TYPE_SENSOR = 3;
+  ASSET_TYPE_CAMERA = 4;
+  ASSET_TYPE_OTHER = 5;
+  ASSET_TYPE_JAMMER = 6;
+  ASSET_TYPE_CYBER_ATTACK = 7;
+  ASSET_TYPE_SAPIENT = 8;
+  ASSET_TYPE_RNS = 9;
+}
+
+enum AssetVendor{
+  ASSET_VENDOR_DJI = 0;
+  ASSET_VENDOR_AUTEL = 1;
+  ASSET_VENDOR_ROS = 2;
+  ASSET_VENDOR_MAVLINK = 3;
+  ASSET_VENDOR_RTMP_RTSP = 4;
+  ASSET_VENDOR_SAPIENT = 5;
+  ASSET_VENDOR_BETAFLIGHT = 6;
+  ASSET_VENDOR_RNS = 7;
+  // Non-hardware bridge/integration assets (e.g. the Integration Hub platform bridge) that register
+  // themselves as an EdgeAdapterService endpoint without owning a physical vendor protocol.
+  ASSET_VENDOR_ZQNT = 8;
+  // Purely simulated assets -- the edge simulator's fleet.
+  //
+  // Its own slot rather than sharing ZQNT: an adapter's endpoint is keyed by vendor alone
+  // (edge-vendor:{sn} -> vendor -> edge-endpoints:{vendor} -> one endpoint), so two adapter
+  // processes claiming one vendor overwrite each other's registration and every asset of that
+  // vendor routes to whichever registered last. Running the simulator alongside the Integration
+  // Hub did exactly that, in both directions. It also states plainly, everywhere an asset is
+  // listed, that the thing is not real.
+  ASSET_VENDOR_SIMULATOR = 9;
+}
+
+enum AssetConnection{
+  MQTT = 0;
+  TCP = 1;
+  SERIAL = 2;
+}
+
+enum LiveStreamTypeEnum{
+  LIVE_STREAM_TYPE_UNKNOWN = 0;
+  LIVE_STREAM_TYPE_RTMP = 1;
+  LIVE_STREAM_TYPE_RTSP = 2;
+  LIVE_STREAM_TYPE_WEBRTC = 3;
+}
+
+message AssetProtoDTO{
+  optional string id = 1;
+  optional string sn = 2;
+  optional string name = 3;
+  optional AssetTypeEnum type = 4;
+  optional AssetVendor vendor = 5;
+  optional AssetConnection connection = 6;
+  optional string system_connection_string = 7;
+  optional string model = 8;
+  reserved 9, 10, 14, 15, 17;
+  reserved "connection_string", "port", "live_stream_server", "online", "sub_asset_dto", "stream_type";
+  optional string external_device_type = 11;
+  optional string external_device_sub_type = 12;
+  optional string organization = 13;
+  optional string external_id = 16;
+  repeated AssetPayloadProtoDTO payloads = 18;
+  repeated SubAssetProtoDTO sub_assets = 19;
+  optional google.protobuf.Timestamp created_at = 20;
+  optional google.protobuf.Timestamp modified_at = 21;
+  optional string modified_from = 22;
+  optional string live_stream_push_url = 23;
+  optional string live_stream_pull_url = 24;
+  // The theatre (operational site) this asset is stationed at, if any -- unlike `organization`
+  // above, this is a freely reassignable attribute, not an identity boundary: settable through the
+  // same generic asset-edit round-trip every other non-identity field already uses.
+  optional string theatre_id = 25;
+}
+
+// A single free-form key/value entry in an asset's dynamic property bag — for system-integrator
+// metadata that doesn't warrant a dedicated AssetProtoDTO field (no schema change needed to add a
+// new one). Distinct from TechnicalConfigProtoDTO: this is per-asset instance data ("this drone's
+// insurance policy number"), not scope-resolved runtime configuration.
+message AssetPropertyProtoDTO {
+  string key = 1;
+  google.protobuf.Value value = 2;
+  optional string description = 3;
+  optional google.protobuf.Timestamp created_at = 4;
+  optional google.protobuf.Timestamp modified_at = 5;
+}
+
+message SubAssetProtoDTO{
+  optional string id = 1;
+  optional string sn = 2;
+  optional string name = 3;
+  optional AssetTypeEnum type = 4;
+  optional AssetVendor vendor = 5;
+  optional AssetConnection connection = 6;
+  optional string system_connection_string = 7;
+  optional string model = 8;
+  reserved 9, 10, 13, 14, 16;
+  reserved "connection_string", "port", "live_stream_server", "organization", "online", "stream_type";
+  optional string external_device_type = 11;
+  optional string external_device_sub_type = 12;
+  optional string external_id = 15;
+  optional bool stream_url_predefined = 17;
+  repeated AssetPayloadProtoDTO payloads = 18;
+  optional google.protobuf.Timestamp created_at = 19;
+  optional google.protobuf.Timestamp modified_at = 20;
+  optional string modified_from = 21;
+  optional string live_stream_push_url = 22;
+  optional string live_stream_pull_url = 23;
+}
+
+message AssetPayloadProtoDTO {
+  optional string id = 1;
+  optional string external_id = 2;
+  optional string external_type = 3;
+  optional int32 slot_index = 4;
+  optional string name = 5;
+  optional string serial_number = 6;
+  optional string kind = 7;
+  optional string vendor = 8;
+  optional string model = 9;
+  optional string firmware_version = 10;
+  optional string library_version = 11;
+  reserved 12, 14;
+  reserved "capabilities_json", "commands";
+  optional string state_json = 13;
+  bool active = 15;
+  optional google.protobuf.Timestamp last_seen_at = 16;
+  optional google.protobuf.Timestamp created_at = 17;
+  optional google.protobuf.Timestamp modified_at = 18;
+  optional string modified_from = 19;
+  // Stable runtime identity reported by the edge adapter.
+  optional string payload_ref = 20;
+}
+
+message OrganizationProtoDTO{
+  optional string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string assets = 4;
+  optional google.protobuf.Timestamp created_at = 5;
+  optional google.protobuf.Timestamp modified_at = 6;
+}

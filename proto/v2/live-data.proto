@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "common.proto";
+import "events.proto";
+import "live-data-types.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.livedata.proto";
+option java_outer_classname = "LiveDataProto";
+option go_package = "gen/livedata/proto";
+
+// LiveDataService provides RPC methods for telemetry, detections, notifications,
+// and live stream management. Payload models are defined in live-data-types.proto.
+service LiveDataService {
+  rpc StreamTelemetry(StreamTelemetryRequest) returns (stream LiveDataTelemetryResponse);
+  rpc ProduceTelemetry(stream ProduceTelemetryRequest) returns (LiveDataResponse);
+
+  rpc StreamDetections(DetectionStreamRequest) returns (stream LiveDataDetectionResponse);
+  rpc ProduceDetection(stream DetectionBatch) returns (LiveDataResponse);
+
+  rpc StreamNotifications(StreamNotificationsRequest) returns (stream NotificationResponse);
+  rpc ProduceNotification(stream ProduceNotificationRequest) returns (LiveDataResponse);
+
+  rpc StartLiveStream(LiveStreamStartCommandRequest) returns (CommandResponse);
+  rpc StopLiveStream(LiveStreamStopCommandRequest) returns (CommandResponse);
+  rpc ChangeLens(ChangeCameraLensCommandRequest) returns (CommandResponse);
+  rpc ChangeZoom(ChangeCameraZoomCommandRequest) returns (CommandResponse);
+
+  rpc StartRecording(EmptyCommandRequest) returns (CommandResponse);
+  rpc StopRecording(EmptyCommandRequest) returns (CommandResponse);
+  rpc CapturePhoto(EmptyCommandRequest) returns (CommandResponse);
+}

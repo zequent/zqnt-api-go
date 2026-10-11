@@ -1,0 +1,1545 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
+import "common.proto";
+import "events.proto";
+import "mission-autonomy-contracts.proto";
+import "mission-autonomy-dto.proto";
+import "capability-execution-contracts.proto";
+import "capability-execution-dto.proto";
+import "device-control-contracts.proto";
+import "media.proto";
+
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.connector.proto";
+option java_outer_classname = "ConnectorProto";
+option go_package = "gen/connector/proto";
+
+
+
+
+// ConnectorService owns persisted asset metadata, workflow persistence,
+// telemetry/detection storage, policies, and runtime technical configuration.
+service ConnectorService {
+
+  rpc RegisterAsset(ConnectorRegisterAssetRequest) returns (ConnectorResponse);
+  rpc DeregisterAsset(RequestBase) returns (ConnectorResponse);
+  rpc AssetMonitoring(RequestBase) returns (stream AssetMonitoringResponse);
+  rpc UpdateAsset(ConnectorUpdateAssetRequest) returns (ConnectorResponse);
+  rpc UpdateSubAsset(ConnectorUpdateSubAssetRequest) returns (ConnectorResponse);
+  rpc GetAssetBySn(RequestBase) returns (ConnectorResponse);
+  rpc GetAssetById(ConnectorGetAssetByIdRequest) returns (ConnectorResponse);
+  rpc GetSubAssetBySn(RequestBase) returns (ConnectorResponse);
+  // Every asset that exists for the caller's organization (every asset platform-wide for a
+  // system_admin caller — same bypass-tenant-filtering rule as everywhere else), regardless of
+  // whether it's currently reporting itself online. Distinct from AssetMonitoring's streamed
+  // ConnectorAssetList (that's live/cached status snapshots for already-known SNs); this is the
+  // actual system-of-record enumeration — there was no way to list assets at all before this RPC,
+  // only look one up by a SN you already knew.
+  rpc ListAssets(ListAssetsRequest) returns (AssetListResponse);
+  // Asset claims — one-time provisioning codes. An asset's organization is decided once and can
+  // never be changed (ListAssets filters on asset.organization.id, and UpdateAsset pins the field),
+  // so a device that registers itself must be told which tenant it belongs to before the asset
+  // exists. A claim carries that decision from the operator who made it to the device that
+  // redeems it.
+  rpc CreateAssetClaim(CreateAssetClaimRequest) returns (AssetClaimResponse);
+  // The one RPC here that does not resolve its organization from the caller's token: the claim
+  // code IS the credential, which is what lets an edge adapter with no platform identity redeem
+  // one. Refusals are deliberately indistinguishable from one another — an expired code and an
+  // unknown code answer alike, or this becomes an oracle for guessing codes.
+  rpc RedeemAssetClaim(RedeemAssetClaimRequest) returns (ConnectorResponse);
+  // Read a code without spending it, so a device can show its operator which organization they are
+  // about to bind into before anything is created. DJI's dock asks for exactly this: it resolves a
+  // typed code to an organization name for confirmation, and only the following bind carries the
+  // device serials. Untokened like RedeemAssetClaim, and refuses identically — but it returns the
+  // organization's NAME and nothing else, so a correct guess reveals a label the operator was
+  // about to be shown anyway rather than an id anything can be done with.
+  rpc DescribeAssetClaim(DescribeAssetClaimRequest) returns (AssetClaimDescriptionResponse);
+  rpc ListAssetClaims(ListAssetClaimsRequest) returns (AssetClaimListResponse);
+  rpc RevokeAssetClaim(RevokeAssetClaimRequest) returns (AssetClaimResponse);
+
+  rpc UpsertAssetPayload(UpsertAssetPayloadRequest) returns (AssetPayloadResponse);
+  rpc ListAssetPayloads(ListAssetPayloadsRequest) returns (AssetPayloadListResponse);
+  rpc DeleteAssetPayload(DeleteAssetPayloadRequest) returns (AssetPayloadResponse);
+
+  // Dynamic per-asset property bag (system-integrator metadata) — free key/value pairs, no schema
+  // change needed to add a new one. SetAssetProperty upserts by (asset, key).
+  rpc SetAssetProperty(SetAssetPropertyRequest) returns (AssetPropertyResponse);
+  rpc ListAssetProperties(ListAssetPropertiesRequest) returns (AssetPropertyListResponse);
+  rpc DeleteAssetProperty(DeleteAssetPropertyRequest) returns (AssetPropertyResponse);
+  rpc GetOrganization(ConnectorGetOrganizationRequest) returns (ConnectorResponse);
+  rpc ListSchedulers(ListSchedulersRequest) returns (SchedulerResponse);
+  rpc GetScheduler(GetSchedulerRequest) returns (SchedulerResponse);
+  rpc CreateScheduler(CreateSchedulerRequest) returns (SchedulerResponse);
+  rpc CreateSchedulers(CreateSchedulersRequest) returns (SchedulerResponse);
+  rpc UpdateScheduler(UpdateSchedulerRequest) returns (SchedulerResponse);
+  rpc DeleteScheduler(DeleteSchedulerRequest) returns (SchedulerResponse);
+  rpc DeleteSchedulers(DeleteSchedulersRequest) returns (SchedulerResponse);
+  // What the last firing of a schedule did; see RecordSchedulerFiringRequest.
+  rpc RecordSchedulerFiring(RecordSchedulerFiringRequest) returns (SchedulerResponse);
+
+  // Telemetry Storage - batch processing from live-data service
+  rpc StoreTelemetryBatch(stream ConnectorStoreTelemetryRequest) returns (ConnectorResponse);
+
+  // Detection Storage - batch processing from live-data service (high-frequency, TimescaleDB)
+  rpc StoreDetectionBatch(stream ConnectorStoreDetectionRequest) returns (ConnectorResponse);
+
+  // Notification Storage - batch processing from live-data service
+  rpc StoreNotificationBatch(stream ProduceNotificationRequest) returns (ConnectorResponse);
+
+  // Media a device uploaded to the inbox bucket (see media.proto): attributed, moved under its
+  // organization/application folder and recorded. Idempotent per source object key.
+  rpc RegisterMediaFile(RegisterMediaFileRequest) returns (MediaFileProtoDTO);
+  rpc ListMediaFiles(ListMediaFilesRequest) returns (ListMediaFilesResponse);
+  rpc GetMediaFile(GetMediaFileRequest) returns (MediaFileProtoDTO);
+
+  // Policy Management - fetched by Mission-Autonomy for decision engine cache. Read-only RPCs
+  // existed first; the CRUD RPCs below back the admin-console "Operational Policies" management
+  // screen (previously a fully mocked/hardcoded frontend with no backend at all -- see
+  // OperationalPolicyService, which already did real persistence + push-invalidation eventing for
+  // the REST-only connector-internal API these now also front).
+  rpc GetActivePoliciesByType(ConnectorGetPoliciesRequest) returns (ConnectorPolicyResponse);
+  rpc GetAllActivePolicies(ConnectorGetAllPoliciesRequest) returns (ConnectorPolicyResponse);
+  rpc GetPolicyById(GetPolicyByIdRequest) returns (ConnectorPolicySingleResponse);
+  rpc CreatePolicy(CreatePolicyRequest) returns (ConnectorPolicySingleResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (ConnectorPolicySingleResponse);
+  rpc DeletePolicy(DeletePolicyRequest) returns (ConnectorDeletePolicyResponse);
+
+  // Organization Management - connector's own OrganizationService already had full REST CRUD
+  // (/api/organization, orphaned/never called from outside connector, same shape as the old
+  // OperationalPolicy REST API) -- these RPCs are the real cross-service front door for it, backing
+  // the admin-console "Organizations" management screen.
+  rpc GetAllOrganizations(ConnectorGetAllOrganizationsRequest) returns (ConnectorOrganizationResponse);
+  rpc GetOrganizationById(GetOrganizationByIdRequest) returns (ConnectorOrganizationSingleResponse);
+  rpc CreateOrganization(CreateOrganizationRequest) returns (ConnectorOrganizationSingleResponse);
+  rpc UpdateOrganization(UpdateOrganizationRequest) returns (ConnectorOrganizationSingleResponse);
+  rpc DeleteOrganization(DeleteOrganizationRequest) returns (ConnectorDeleteOrganizationResponse);
+  // Creates the organization a license names, with the id the license carries (the only way an
+  // organization gets a caller-chosen id), and stores that license's sealed activation credentials
+  // in the same transaction -- both or neither. An id that already exists is not changed and nothing
+  // is written: already_exists = true and organization holds the existing one, so the caller can
+  // treat it as activating a license for an existing organization.
+  rpc ProvisionLicensedOrganization(ProvisionLicensedOrganizationRequest) returns (ProvisionLicensedOrganizationResponse);
+
+  // Theatre Management - a named operational site within one organization (optional geo zone, the
+  // assets stationed there, the users with access to it). Same CRUD shape as Organization above;
+  // AssignUserToTheatre/RemoveUserFromTheatre back the many-to-many user<->theatre join table
+  // (deliberately not a repeated field on TheatreProtoDTO -- resolved fresh per request, same
+  // "don't bake something that can change independently into a cached/long-lived value" reasoning
+  // as the refresh-token roles fix).
+  rpc GetAllTheatres(ConnectorGetAllTheatresRequest) returns (ConnectorTheatreResponse);
+  rpc GetTheatreById(GetTheatreByIdRequest) returns (ConnectorTheatreSingleResponse);
+  rpc CreateTheatre(CreateTheatreRequest) returns (ConnectorTheatreSingleResponse);
+  rpc UpdateTheatre(UpdateTheatreRequest) returns (ConnectorTheatreSingleResponse);
+  rpc DeleteTheatre(DeleteTheatreRequest) returns (ConnectorDeleteTheatreResponse);
+  rpc AssignUserToTheatre(AssignUserToTheatreRequest) returns (TheatreAssignmentResponse);
+  rpc RemoveUserFromTheatre(RemoveUserFromTheatreRequest) returns (TheatreAssignmentResponse);
+
+  // No-fly zones -- the one store of an organization's no-fly zones. Mission-autonomy reads them to
+  // plan and refuse flights (RouteExecutionGraphExpander), admin-console to draw and edit them.
+  // Ids are chosen by the caller (the console's own ids survive the move from Redis). An id that
+  // belongs to another organization is answered as not found.
+  rpc ListNoFlyZones(ListNoFlyZonesRequest) returns (NoFlyZoneListResponse);
+  rpc UpsertNoFlyZone(UpsertNoFlyZoneRequest) returns (NoFlyZoneSingleResponse);
+  rpc DeleteNoFlyZone(DeleteNoFlyZoneRequest) returns (DeleteNoFlyZoneResponse);
+
+  // License activation credentials -- the activation id and token admin-console received from the
+  // license hub when it activated an organization's license. Without them admin-console can neither
+  // refresh that organization's lease nor consume its seats, so they must survive a restart and be
+  // shared between replicas. admin-console seals the token before it gets here (AES-256-GCM under a
+  // per-organization key derived from the installation's platform key); connector stores the
+  // envelope and never sees the token itself. At most one record per organization; Put replaces it.
+  rpc ListLicenseActivationCredentials(ListLicenseActivationCredentialsRequest) returns (LicenseActivationCredentialsListResponse);
+  rpc GetLicenseActivationCredentials(GetLicenseActivationCredentialsRequest) returns (LicenseActivationCredentialsSingleResponse);
+  rpc PutLicenseActivationCredentials(PutLicenseActivationCredentialsRequest) returns (LicenseActivationCredentialsSingleResponse);
+  rpc DeleteLicenseActivationCredentials(DeleteLicenseActivationCredentialsRequest) returns (DeleteLicenseActivationCredentialsResponse);
+
+  // Event Triggers — "start Application X on event Y" (detection / telemetry threshold / asset
+  // status / inbound webhook). CRUD mirrors Theatre's shape; ListRecentDetections and
+  // GetLatestTelemetryForAsset back mission-autonomy's polling evaluator (EventTriggerEvaluationService),
+  // RecordEventTriggerFired stamps last_fired_at for cooldown bookkeeping after a real fire.
+  rpc GetAllEventTriggers(ConnectorGetAllEventTriggersRequest) returns (ConnectorEventTriggerResponse);
+  rpc GetEventTriggerById(GetEventTriggerByIdRequest) returns (ConnectorEventTriggerSingleResponse);
+  rpc CreateEventTrigger(CreateEventTriggerRequest) returns (ConnectorEventTriggerSingleResponse);
+  rpc UpdateEventTrigger(UpdateEventTriggerRequest) returns (ConnectorEventTriggerSingleResponse);
+  rpc DeleteEventTrigger(DeleteEventTriggerRequest) returns (ConnectorDeleteEventTriggerResponse);
+  rpc RecordEventTriggerFired(RecordEventTriggerFiredRequest) returns (ConnectorEventTriggerSingleResponse);
+  rpc RegenerateEventTriggerWebhookToken(RegenerateEventTriggerWebhookTokenRequest) returns (ConnectorEventTriggerSingleResponse);
+  rpc GetEventTriggerByWebhookToken(GetEventTriggerByWebhookTokenRequest) returns (ConnectorEventTriggerSingleResponse);
+  rpc ListRecentDetections(ListRecentDetectionsRequest) returns (ConnectorDetectionListResponse);
+  rpc GetLatestTelemetryForAsset(GetLatestTelemetryForAssetRequest) returns (ConnectorTelemetrySingleResponse);
+
+  // Technical Config - fetched by services for runtime configuration. Read-only GetTechnicalConfigs
+  // existed first (services reading their own settings); the CRUD RPCs below back the admin-console
+  // "Technical Config" management screen, so the config values these read-only fetches see can
+  // actually be changed by an admin without a redeploy.
+  rpc GetTechnicalConfigs(ConnectorGetConfigsRequest) returns (ConnectorConfigResponse);
+  rpc GetTechnicalConfigById(GetTechnicalConfigByIdRequest) returns (ConnectorConfigSingleResponse);
+  rpc CreateTechnicalConfig(CreateTechnicalConfigRequest) returns (ConnectorConfigSingleResponse);
+  rpc UpdateTechnicalConfig(UpdateTechnicalConfigRequest) returns (ConnectorConfigSingleResponse);
+  rpc DeleteTechnicalConfig(DeleteTechnicalConfigRequest) returns (ConnectorDeleteConfigResponse);
+
+  // Application/Skill domain persistence. Mission Autonomy is the orchestration consumer.
+  rpc PersistApplication(UpsertApplicationRequest) returns (ApplicationResponse);
+  rpc GetPersistedApplication(GetApplicationRequest) returns (ApplicationResponse);
+  rpc ListPersistedApplications(ListApplicationsRequest) returns (ApplicationListResponse);
+  rpc DeletePersistedApplication(DeleteApplicationRequest) returns (ApplicationResponse);
+  // Pausing is operational state, not part of the versioned Application -- see ApplicationPauseProtoDTO.
+  // SetApplicationPause answers with every pause of that Application after the change.
+  rpc SetApplicationPause(SetApplicationPauseRequest) returns (ApplicationPauseListResponse);
+  rpc ListApplicationPauses(ListApplicationPausesRequest) returns (ApplicationPauseListResponse);
+  rpc GetApplicationEnvironmentPointers(GetApplicationEnvironmentsRequest) returns (ApplicationEnvironmentsResponse);
+  rpc PromoteApplicationVersion(PromoteApplicationVersionRequest) returns (ApplicationEnvironmentsResponse);
+  rpc PersistSkillExecution(PersistSkillExecutionRequest) returns (SkillExecutionResponse);
+  rpc GetPersistedSkillExecution(GetSkillExecutionRequest) returns (SkillExecutionResponse);
+  rpc ListPersistedSkillExecutions(ListSkillExecutionsRequest) returns (SkillExecutionListResponse);
+  rpc AppendSkillExecutionEvent(AppendSkillExecutionEventRequest) returns (google.protobuf.Empty);
+
+  // Skill Registry: a persisted, de-duplicated view of every Skill/Capability contract ever
+  // observed from a connected asset, independent of which devices are currently online. Admin
+  // Console auto-upserts into this by (command_id, schema_version) whenever it aggregates a live
+  // capability snapshot; status is the one field a system integrator edits directly.
+  rpc ObserveSkillContract(UpsertSkillContractRequest) returns (SkillContractResponse);
+  rpc ListSkillContracts(ListSkillContractsRequest) returns (SkillContractListResponse);
+  rpc SetSkillContractStatus(SetSkillContractStatusRequest) returns (SkillContractResponse);
+  // Declarative-only prep for future auth/RBAC — see SkillContractProtoDTO.required_permissions.
+  rpc SetSkillContractPermissions(SetSkillContractPermissionsRequest) returns (SkillContractResponse);
+
+  // Platform-hosted authentication: verifies email+password against connector's own user store
+  // (the system of record) and returns the identity a caller (admin-console) mints a
+  // PlatformClaims-shaped auth token from. Connector never issues the token itself — it has no
+  // private signing key — it only ever confirms "this is who they say they are, in this org, with
+  // these roles."
+  rpc AuthenticateUser(AuthenticateUserRequest) returns (AuthenticateUserResponse);
+
+  // Admin-driven user creation — the seat check (does this organization's license have room for
+  // one more user) happens one layer up, in admin-console's LicenseCoordinator, BEFORE this is
+  // ever called; connector itself has no concept of seats, it only persists the user once
+  // admin-console has already confirmed one is available.
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+
+  // Admin-driven password reset — see ResetPasswordRequest's doc.
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+
+  // Durable audit trail for authentication-security-relevant events (login attempts, logout,
+  // admin-driven password resets/session revocations) — see the connector-side AuthAuditService's
+  // doc. Best-effort from the caller's point of view: a failure to record must never block the
+  // actual auth action it's describing, so every call site fires this without letting its outcome
+  // affect the real response.
+  rpc RecordAuthAuditEvent(RecordAuthAuditEventRequest) returns (google.protobuf.Empty);
+
+  // Every user in the caller's own organization (a system_admin caller instead gets every user,
+  // platform-wide — same bypass-tenant-filtering rule as everywhere else, see
+  // TenantScopedRepository#bypassTenantFilter). What the admin console's user-management screen
+  // lists against; there was no read path for the users CreateUser produces until this existed.
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+
+  // Single-user lookup by id — what a "whoami" endpoint resolves an access token's subject claim
+  // (a user id, nothing else) into a displayable identity. AuthenticateUser can't serve this: it
+  // needs a password and is keyed by email, neither of which a bearer token carries.
+  rpc GetUserById(GetUserByIdRequest) returns (AuthenticateUserResponse);
+
+  // Admin-driven user changes. Each answers with the user as it is afterwards (DeleteUser: as it was
+  // just before it went), so the caller knows the organization to act on -- revoking sessions,
+  // releasing the license seat -- without a second lookup. Same caller rules as CreateUser: an
+  // org-admin acts only inside their own organization and never on a system_admin; nobody acts on
+  // themselves, and the last enabled system_admin can be neither demoted, disabled nor deleted.
+  rpc UpdateUserRoles(UpdateUserRolesRequest) returns (AuthenticateUserResponse);
+  // A disabled user can no longer sign in (password or SSO) and no refresh succeeds; the caller
+  // revokes live access tokens. Seats are a licensing concern one layer up: disabling keeps it.
+  rpc SetUserEnabled(SetUserEnabledRequest) returns (AuthenticateUserResponse);
+  // Removes the user for good -- the email is free again. The auth audit trail keeps its rows.
+  rpc DeleteUser(DeleteUserRequest) returns (AuthenticateUserResponse);
+
+  // Pluggable SSO — an organization's own OIDC identity provider config (issuer, client
+  // credentials, which email domains it owns, how its claims map to platform roles). Local
+  // email+password (AuthenticateUser above) stays the default for every org with no config here;
+  // this only ever supplements it, never replaces AuthenticateUser for orgs that don't opt in.
+  rpc UpsertIdentityProvider(UpsertIdentityProviderRequest) returns (IdentityProviderResponse);
+  rpc GetIdentityProvider(GetIdentityProviderRequest) returns (IdentityProviderResponse);
+  // Login-screen discovery: given an email address, which org (if any) owns that domain and has
+  // SSO configured — admin-console calls this before showing a password field or redirecting to
+  // an IdP. Empty response (no error, no provider) means "no SSO for this domain, use local auth."
+  rpc FindIdentityProviderByEmailDomain(FindIdentityProviderByEmailDomainRequest) returns (IdentityProviderResponse);
+
+  // Existence check by (organization_id, external_subject), used by admin-console to decide
+  // whether an SSO login needs a seat reserved before UpsertOidcUser below — same "reserve the
+  // seat, THEN create" ordering CreateUser's caller already follows for local users. Empty
+  // response (has_errors false, no user) means "not provisioned yet."
+  rpc FindOidcUser(FindOidcUserRequest) returns (AuthenticateUserResponse);
+
+  // The OIDC counterpart to AuthenticateUser: admin-console has already completed the
+  // authorization-code exchange and verified the ID token against the org's own IdP by the time
+  // this is called — this only resolves the local user record admin-console mints a
+  // PlatformClaims-shaped token from, same as AuthenticateUser does for password logins. Finds by
+  // (organization_id, external_subject); auto-provisions on first login (a seat is expected to
+  // already be reserved via FindOidcUser+LicenseCoordinator, same division of responsibility as
+  // CreateUser — connector has no concept of seats), and re-stamps email/roles from the IdP's
+  // claims on every subsequent login so a role change in the customer's own directory takes
+  // effect without any action on this platform.
+  rpc UpsertOidcUser(UpsertOidcUserRequest) returns (AuthenticateUserResponse);
+}
+
+message AuthenticateUserRequest {
+  RequestBase base = 1;
+  string email = 2;
+  string password = 3;
+}
+
+// What the caller (admin-console) actually mints an auth token's claims from — see
+// com.zqnt.utils.auth.PlatformClaims, which this shape deliberately mirrors field-for-field.
+message AuthenticatedUserProtoDTO {
+  string user_id = 1;
+  string email = 2;
+  // Absent only for a system_admin — not scoped to any single organization by design.
+  optional string organization_id = 3;
+  repeated string roles = 4;
+  bool enabled = 5;
+  google.protobuf.Timestamp created_at = 6;
+  // How the user signs in: "LOCAL" (email + password) or "OIDC" (the organization's SSO, whose
+  // role mapping owns the roles). Absent from servers that predate it.
+  optional string provider = 7;
+}
+
+message AuthenticateUserResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    AuthenticatedUserProtoDTO user = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
+
+message CreateUserRequest {
+  RequestBase base = 1;
+  // Absent only when creating a system_admin (see AuthenticatedUserProtoDTO.organization_id) —
+  // every other user must belong to an organization.
+  optional string organization_id = 2;
+  string email = 3;
+  string password = 4;
+  repeated string roles = 5;
+  // Caller-supplied when the id needs to be known BEFORE this call — e.g. admin-console reserves
+  // a license seat under this exact id first (so the hub's LicenseSeat.userId and this row's id
+  // are the same value from the start, not reconciled after the fact), then creates the row here.
+  // Server-generated if absent.
+  optional string user_id = 6;
+}
+
+message CreateUserResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    AuthenticatedUserProtoDTO user = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
+
+// Admin-driven password reset — generates and persists a fresh random password for an existing
+// user, same one-time-display temporary-password convention CreateUserRequest already uses.
+// Deliberately doesn't touch session revocation itself (see UserAdminService#resetPassword's doc);
+// the caller (admin-console) revokes the user's outstanding sessions once this succeeds.
+message ResetPasswordRequest {
+  RequestBase base = 1;
+  string user_id = 2;
+}
+
+message ResetPasswordResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    // The new plaintext password — shown to the caller exactly once, same as CreateUserResponse's
+    // temporary password never being persisted anywhere in plaintext beyond this one response.
+    string new_password = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
+
+message RecordAuthAuditEventRequest {
+  RequestBase base = 1;
+  // One of com.zqnt.utils.auth.AuthAuditEventType's LOGIN_SUCCESS/LOGIN_FAILURE/LOGOUT/PASSWORD_RESET/
+  // SESSIONS_REVOKED constants — a plain string, not an enum, so a new event type doesn't need a
+  // proto/codegen change to start being recorded.
+  string event_type = 2;
+  optional string user_id = 3;
+  optional string organization_id = 4;
+  optional string email = 5;
+  optional string source_ip = 6;
+  optional string detail = 7;
+}
+
+message ListUsersRequest {
+  RequestBase base = 1;
+}
+
+message ListUsersResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  repeated AuthenticatedUserProtoDTO users = 3;
+  GlobalErrorMessage error = 4;
+}
+
+message GetUserByIdRequest {
+  RequestBase base = 1;
+  string user_id = 2;
+}
+
+// Replaces the user's roles with exactly this set (not a merge); at least one role.
+message UpdateUserRolesRequest {
+  RequestBase base = 1;
+  string user_id = 2;
+  repeated string roles = 3;
+}
+
+message SetUserEnabledRequest {
+  RequestBase base = 1;
+  string user_id = 2;
+  bool enabled = 3;
+}
+
+message DeleteUserRequest {
+  RequestBase base = 1;
+  string user_id = 2;
+}
+
+// One organization's OIDC configuration — at most one per organization_id. client_secret IS
+// echoed back on GetIdentityProvider/discovery at this gRPC layer — this shape only ever crosses
+// trusted service-to-service traffic (connector <-> admin-console), and admin-console's OIDC
+// token exchange genuinely needs the real secret. The write-only guarantee is enforced one layer
+// up, at admin-console's REST boundary: IdentityProviderAdminAPIImpl maps this into
+// IdentityProviderConfigSummary (no secret field at all) before anything reaches a browser, and
+// the login/discover flow never threads getClientSecret() into anything sent back to one either.
+message IdentityProviderConfigProtoDTO {
+  string organization_id = 1;
+  string issuer_url = 2;
+  string client_id = 3;
+  string client_secret = 4;
+  // Domains this org's SSO owns for login-screen discovery (e.g. "customer.com"). Globally unique
+  // across the installation — a domain can belong to at most one organization's config, so
+  // discovery is an unambiguous single lookup.
+  repeated string email_domains = 5;
+  // Claim name to read group/role membership from (e.g. "groups") — provider-specific, since IdPs
+  // don't agree on where role-ish claims live.
+  string role_claim_name = 6;
+  // IdP claim value -> platform role wire value (see com.zqnt.utils.auth.PlatformRole), e.g.
+  // {"Zequent-Operators": "operator"}. A claim value with no entry here grants no role from it.
+  map<string, string> claim_role_mapping = 7;
+  bool enabled = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message UpsertIdentityProviderRequest {
+  RequestBase base = 1;
+  IdentityProviderConfigProtoDTO config = 2;
+}
+
+message GetIdentityProviderRequest {
+  RequestBase base = 1;
+  string organization_id = 2;
+}
+
+message FindIdentityProviderByEmailDomainRequest {
+  RequestBase base = 1;
+  string email = 2;
+}
+
+message IdentityProviderResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  // Absent (with has_errors still false) means "no config found" — not every caller of this shape
+  // is asking about an org guaranteed to have one, especially FindIdentityProviderByEmailDomain.
+  optional IdentityProviderConfigProtoDTO config = 3;
+  GlobalErrorMessage error = 4;
+}
+
+message FindOidcUserRequest {
+  RequestBase base = 1;
+  string organization_id = 2;
+  string external_subject = 3;
+}
+
+message UpsertOidcUserRequest {
+  RequestBase base = 1;
+  string organization_id = 2;
+  // The IdP's own "sub" claim — stable per-user identifier at that IdP, distinct from this
+  // platform's own user id.
+  string external_subject = 3;
+  string email = 4;
+  // Roles already resolved from the org's claim_role_mapping — this RPC just persists them, it
+  // doesn't re-derive them from raw IdP claims (connector has no reason to know OIDC's claim
+  // shapes at all, that resolution happens once, in admin-console).
+  repeated string roles = 5;
+  // Caller-supplied when the id needs to be known BEFORE this call, same reason as
+  // CreateUserRequest.user_id: admin-console reserves a license seat under this exact id first
+  // (via FindOidcUser to confirm this is actually a new user), then this call persists the row
+  // under that id. Ignored (the existing row's id is kept) when the (organization_id,
+  // external_subject) pair already exists — this field only ever matters for first-time
+  // provisioning. Server-generated if absent.
+  optional string user_id = 6;
+}
+
+message PersistSkillExecutionRequest {
+  RequestBase base = 1;
+  SkillExecutionProtoDTO execution = 2;
+}
+
+message AppendSkillExecutionEventRequest {
+  RequestBase base = 1;
+  SkillExecutionEventProto event = 2;
+}
+
+message UpsertAssetPayloadRequest {
+  RequestBase base = 1;
+  AssetPayloadProtoDTO payload = 2;
+  optional string sub_asset_sn = 3;
+  optional AssetPayloadOwner owner = 4;
+  // Empty means a full upsert; otherwise only listed paths change.
+  google.protobuf.FieldMask update_mask = 5;
+}
+
+message AssetPayloadOwner {
+  oneof owner {
+    string asset_id = 1;
+    string sub_asset_id = 2;
+  }
+}
+
+message ListAssetPayloadsRequest {
+  RequestBase base = 1;
+  AssetPayloadOwner owner = 2;
+}
+
+message DeleteAssetPayloadRequest {
+  RequestBase base = 1;
+  AssetPayloadOwner owner = 2;
+  string payload_id = 3;
+}
+
+message AssetPayloadResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  optional AssetPayloadProtoDTO payload = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+message AssetPayloadListResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  repeated AssetPayloadProtoDTO payloads = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+message SetAssetPropertyRequest {
+  RequestBase base = 1;
+  string sn = 2;
+  string key = 3;
+  google.protobuf.Value value = 4;
+  optional string description = 5;
+}
+
+message ListAssetPropertiesRequest {
+  RequestBase base = 1;
+  string sn = 2;
+}
+
+message DeleteAssetPropertyRequest {
+  RequestBase base = 1;
+  string sn = 2;
+  string key = 3;
+}
+
+message AssetPropertyResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  optional AssetPropertyProtoDTO property = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+message AssetPropertyListResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  repeated AssetPropertyProtoDTO properties = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+enum SkillContractStatus {
+  SKILL_CONTRACT_STATUS_ACTIVE = 0;
+  SKILL_CONTRACT_STATUS_DRAFT = 1;
+  SKILL_CONTRACT_STATUS_DEPRECATED = 2;
+  SKILL_CONTRACT_STATUS_RETIRED = 3;
+}
+
+// A persisted Skill Registry entry — one row per (command_id, schema_version). Reuses the same
+// errors/events/requirements/source/provider shapes as the live Capability contract
+// (device-control-contracts.proto) so a registry entry and a live snapshot are directly comparable.
+message SkillContractProtoDTO {
+  string id = 1;
+  string command_id = 2;
+  string skill_id = 3;
+  optional string display_name = 4;
+  optional string description = 5;
+  optional string schema_version = 6;
+  google.protobuf.Struct input_schema = 7;
+  google.protobuf.Struct output_schema = 8;
+  repeated CapabilityErrorProto errors = 9;
+  repeated CapabilityEventProto events = 10;
+  optional CapabilityRequirementsProto requirements = 11;
+  optional CapabilitySourceProto source = 12;
+  optional string provider = 13;
+  SkillContractStatus status = 14;
+  optional google.protobuf.Timestamp first_seen_at = 15;
+  optional google.protobuf.Timestamp last_seen_at = 16;
+  // Version lineage: set whenever this schema_version isn't the first one observed for command_id.
+  optional string previous_schema_version = 17;
+  optional SkillContractCompatibility compatibility = 18;
+  // Human-readable reasons behind the compatibility verdict, e.g. "required field 'zoom' added",
+  // "property 'lens' type changed from string to number". Empty when compatibility is COMPATIBLE/NEW.
+  repeated string compatibility_notes = 19;
+  // Declarative only — no enforcement exists yet, since the platform has no user-level
+  // identity/role system today (only the installation-level license lease). System integrators set
+  // this via the console (SetSkillContractPermissions) as forward-prep for when one does; free-form
+  // strings by design (e.g. "mission.launch", "role:pilot") so no fixed permission vocabulary is
+  // baked in ahead of that decision.
+  repeated string required_permissions = 20;
+}
+
+// Structural verdict comparing a schema_version's input/output schema against the command_id's
+// previous version — computed by SkillContractCompatibilityChecker (connector) on each observation
+// that introduces a new schema_version for an already-known command_id.
+enum SkillContractCompatibility {
+  SKILL_CONTRACT_COMPATIBILITY_UNKNOWN = 0;
+  // First version ever observed for this command_id — nothing to compare against.
+  SKILL_CONTRACT_COMPATIBILITY_NEW = 1;
+  // Only additive/optional changes versus the previous version (safe for existing graphs/callers).
+  SKILL_CONTRACT_COMPATIBILITY_COMPATIBLE = 2;
+  // A required input was added/changed or an existing input/output property was removed or
+  // retyped — existing authored graphs referencing the previous version may now be invalid.
+  SKILL_CONTRACT_COMPATIBILITY_BREAKING = 3;
+}
+
+message UpsertSkillContractRequest {
+  RequestBase base = 1;
+  SkillContractProtoDTO contract = 2;
+}
+
+message ListSkillContractsRequest {
+  RequestBase base = 1;
+  optional SkillContractStatus status = 2;
+  // When set, lists every persisted version of this one command_id (its full version history)
+  // instead of the whole registry.
+  optional string command_id = 3;
+}
+
+message SetSkillContractStatusRequest {
+  RequestBase base = 1;
+  string id = 2;
+  SkillContractStatus status = 3;
+}
+
+message SetSkillContractPermissionsRequest {
+  RequestBase base = 1;
+  string id = 2;
+  // Full replacement, not a merge — mirrors SetSkillContractStatus's replace-the-field semantics.
+  repeated string required_permissions = 3;
+}
+
+message SkillContractResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  optional SkillContractProtoDTO contract = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+message SkillContractListResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  repeated SkillContractProtoDTO contracts = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+
+message ConnectorGetAssetByIdRequest {
+  RequestBase base = 1;
+  string asset_id = 2;
+}
+
+message ConnectorAssetList {
+  repeated AssetProtoDTO assets = 1;
+}
+
+message ListAssetsRequest {
+  RequestBase base = 1;
+}
+
+message AssetListResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  repeated AssetProtoDTO assets = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+message ConnectorRegisterAssetRequest {
+  RequestBase base = 1;
+  AssetProtoDTO asset = 2;
+}
+
+// A provisioning claim. Deliberately carries neither the code nor its hash: only a SHA-256 hash is
+// stored, and the code itself is returned exactly once, by CreateAssetClaim.
+message AssetClaimProtoDTO {
+  string id = 1;
+  string organization_id = 2;
+  optional string label = 3;
+  optional string created_by = 4;
+  // Narrowing. A code cut for a MAVLink aircraft should not be redeemable by whatever else
+  // happens to learn it.
+  optional AssetVendor allowed_vendor = 5;
+  optional AssetTypeEnum allowed_type = 6;
+  // A DJI bind request carries a LIST of devices — a dock and its drone arrive together — so a
+  // strictly single-use code would refuse the second one. Defaults to 1.
+  int32 max_redemptions = 7;
+  int32 redemption_count = 8;
+  google.protobuf.Timestamp expires_at = 9;
+  optional google.protobuf.Timestamp revoked_at = 10;
+  google.protobuf.Timestamp created_at = 11;
+  repeated AssetClaimRedemptionProtoDTO redemptions = 12;
+}
+
+// What a claim actually produced — the provenance of an asset that did not come from the console.
+message AssetClaimRedemptionProtoDTO {
+  string id = 1;
+  string asset_id = 2;
+  string sn = 3;
+  google.protobuf.Timestamp redeemed_at = 4;
+}
+
+message CreateAssetClaimRequest {
+  RequestBase base = 1;
+  string organization_id = 2;
+  optional string label = 3;
+  optional AssetVendor allowed_vendor = 4;
+  optional AssetTypeEnum allowed_type = 5;
+  optional int32 max_redemptions = 6;
+  // Server applies its own default and upper bound; a claim is meant to stop working soon.
+  optional int32 ttl_seconds = 7;
+}
+
+message AssetClaimResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  optional GlobalErrorMessage error = 3;
+  optional AssetClaimProtoDTO claim = 4;
+  // The raw code, on CreateAssetClaim only. Nothing can recover it afterwards, because only its
+  // hash was ever stored — show it to the operator once or the claim is worthless.
+  optional string code = 5;
+}
+
+message RedeemAssetClaimRequest {
+  RequestBase base = 1;
+  string code = 2;
+  // sn/name/type/vendor/connection/system_connection_string. The organization field is ignored:
+  // the claim decides it, which is the entire point of redeeming rather than registering.
+  AssetProtoDTO asset = 3;
+}
+
+message DescribeAssetClaimRequest {
+  RequestBase base = 1;
+  string code = 2;
+}
+
+// Deliberately thin. No claim id, no organization id, no expiry, no narrowing, no redemption
+// counts: this answers an untokened caller holding a guessable-length code, so everything it
+// returns is something an attacker would learn for free. The organization name is the one field
+// the flow actually needs — it is what the operator confirms on the device's screen.
+message AssetClaimDescriptionResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  optional GlobalErrorMessage error = 3;
+  optional string organization_name = 4;
+}
+
+message ListAssetClaimsRequest {
+  RequestBase base = 1;
+  // Expired, revoked and fully redeemed claims — off by default, since the useful view is
+  // "what is open right now".
+  optional bool include_closed = 2;
+}
+
+message AssetClaimListResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  repeated AssetClaimProtoDTO claims = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+message RevokeAssetClaimRequest {
+  RequestBase base = 1;
+  string claim_id = 2;
+}
+
+message ConnectorUpdateAssetRequest {
+  RequestBase base = 1;
+  AssetProtoDTO asset = 2;
+  string asset_id = 3;
+  // Empty means replace all mutable fields; otherwise only listed paths change.
+  google.protobuf.FieldMask update_mask = 4;
+}
+
+message ConnectorUpdateSubAssetRequest {
+  RequestBase base = 1;
+  SubAssetProtoDTO sub_asset = 2;
+  string sub_asset_id = 3;
+  // Empty means replace all mutable fields; otherwise only listed paths change.
+  google.protobuf.FieldMask update_mask = 4;
+}
+
+message ConnectorResponse {
+  string tid = 1;
+  optional string id = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional bool has_errors = 4;
+  optional string asset_id = 5;
+  optional string response_message = 6;
+  oneof response{
+    google.protobuf.Empty empty = 7;
+    GlobalErrorMessage error = 8;
+    AssetProtoDTO asset = 9;
+    SubAssetProtoDTO sub_asset = 10;
+    OrganizationProtoDTO organization = 11;
+  }
+}
+
+message AssetMonitoringResponse {
+  string tid = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  bool has_errors = 3;
+  oneof response {
+    google.protobuf.Empty empty = 4;
+    GlobalErrorMessage error = 5;
+    ConnectorAssetList assets = 6;
+  }
+}
+
+message ConnectorGetOrganizationRequest {
+  RequestBase base = 1;
+  optional string bind_code = 2;
+}
+
+// ========== TELEMETRY STORAGE ==========
+
+message ConnectorStoreTelemetryRequest {
+  RequestBase base = 1;
+  TelemetryType type = 2;
+  oneof telemetry {
+    AssetTelemetryProto asset_telemetry = 3;
+    SubAssetTelemetryProto sub_asset_telemetry = 4;
+  }
+}
+
+// ========== DETECTION STORAGE ==========
+
+message ConnectorStoreDetectionRequest {
+  RequestBase                     base               = 1;
+  string                          asset_sn           = 2;
+  optional string                 sub_asset_sn       = 3;
+  optional string                 task_id            = 4;
+  string                          object_id          = 5;
+  string                          object_type        = 6;
+  optional float                  confidence         = 7;
+  optional float                  bounding_box_x     = 8;
+  optional float                  bounding_box_y     = 9;
+  optional float                  bounding_box_width = 10;
+  optional float                  bounding_box_height = 11;
+  optional string                 stream_url         = 12;
+  google.protobuf.Timestamp       detected_at        = 13;
+  optional DetectionPosition      position           = 14;
+}
+
+// ========== TELEMETRY STORAGE ==========
+
+enum TelemetryType {
+  TELEMETRY_TYPE_UNSPECIFIED = 0;
+  TELEMETRY_TYPE_ASSET = 1;
+  TELEMETRY_TYPE_SUBASSET = 2;
+}
+
+message AssetTelemetryProto {
+  string asset_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  optional double latitude = 3;
+  optional double longitude = 4;
+  optional double altitude = 5;
+  optional double relative_altitude = 6;
+  optional double heading = 7;
+  optional double temperature = 8;
+  optional double humidity = 9;
+  optional double wind_speed = 10;
+  optional double battery_percentage = 11;
+  optional string network_type = 12;
+  optional int32 network_quality = 13;
+  optional string operational_mode = 14;
+  optional bool is_online = 15;
+  string source_system = 16;
+  map<string, string> telemetry_data = 17; // JSONB data as string map
+}
+
+message SubAssetTelemetryProto {
+  string asset_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  optional double latitude = 3;
+  optional double longitude = 4;
+  optional double altitude = 5;
+  optional double relative_altitude = 6;
+  optional double heading = 7;
+  optional double horizontal_speed = 8;
+  optional double vertical_speed = 9;
+  optional double wind_speed = 10;
+  optional double battery_percentage = 11;
+  optional string operational_mode = 12;
+  optional bool is_online = 13;
+  string source_system = 14;
+  map<string, string> telemetry_data = 15; // JSONB data as string map
+}
+
+// ========== POLICY MANAGEMENT ==========
+
+message PolicyProtoDTO {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string policy_type = 4;
+  string scope = 5;
+  optional string scope_target = 6;
+  int32 priority = 7;
+  bool active = 8;
+  string strategy_type = 9;
+  optional string conditions = 10;   // JSON array string
+  optional string constraints = 11;  // JSON array string
+  optional string actions = 12;      // JSON array string
+  optional string organization_id = 13;
+  optional google.protobuf.Timestamp created_at = 14;
+  optional google.protobuf.Timestamp modified_at = 15;
+}
+
+message PolicyProtoDTOList {
+  repeated PolicyProtoDTO policies = 1;
+}
+
+message ConnectorGetPoliciesRequest {
+  RequestBase base = 1;
+  string policy_type = 2;
+}
+
+message ConnectorGetAllPoliciesRequest {
+  RequestBase base = 1;
+  // False (default) matches every prior caller's expectation -- only the admin console's "show
+  // deactivated policies" view sets this true. Same reasoning as ConnectorGetConfigsRequest's
+  // include_inactive.
+  bool include_inactive = 2;
+}
+
+message ConnectorPolicyResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    PolicyProtoDTOList policy_list = 5;
+  }
+}
+
+message GetPolicyByIdRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message CreatePolicyRequest {
+  RequestBase base = 1;
+  PolicyProtoDTO policy = 2;
+}
+
+message UpdatePolicyRequest {
+  RequestBase base = 1;
+  string id = 2;
+  PolicyProtoDTO policy = 3;
+}
+
+message DeletePolicyRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message ConnectorPolicySingleResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    PolicyProtoDTO policy = 5;
+  }
+}
+
+message ConnectorDeletePolicyResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bool deleted = 4;
+  optional GlobalErrorMessage error = 5;
+}
+
+// ========== ORGANIZATION MANAGEMENT ==========
+
+message ConnectorGetAllOrganizationsRequest {
+  RequestBase base = 1;
+}
+
+message GetOrganizationByIdRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message CreateOrganizationRequest {
+  RequestBase base = 1;
+  OrganizationProtoDTO organization = 2;
+}
+
+message UpdateOrganizationRequest {
+  RequestBase base = 1;
+  string id = 2;
+  OrganizationProtoDTO organization = 3;
+}
+
+message DeleteOrganizationRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message OrganizationProtoDTOList {
+  repeated OrganizationProtoDTO organizations = 1;
+}
+
+message ConnectorOrganizationResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    OrganizationProtoDTOList organization_list = 5;
+  }
+}
+
+message ConnectorOrganizationSingleResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    OrganizationProtoDTO organization = 5;
+  }
+}
+
+message ConnectorDeleteOrganizationResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bool deleted = 4;
+  optional GlobalErrorMessage error = 5;
+}
+
+// ========== THEATRE MANAGEMENT ==========
+
+message TheatreProtoDTO {
+  optional string id = 1;
+  string organization_id = 2;
+  string name = 3;
+  string description = 4;
+  // Same shape mission-autonomy's no-fly-zones/mission-zones already use (polygon/circle/geojson/
+  // bounding-box) -- absent means this theatre is a real grouping with no spatial matching, not an
+  // error.
+  optional GeoAreaProtoDTO geo_zone = 5;
+  // Each asset's own id, not settable here -- an asset joins a theatre via its own theatre_id field
+  // (see AssetProtoDTO.theatre_id), same one-directional relationship Organization.assets already
+  // has to Asset.organization.
+  repeated string assets = 6;
+  // Each assigned user's own id -- mutated via AssignUserToTheatre/RemoveUserFromTheatre, not by
+  // resending this list on an update.
+  repeated string assigned_user_ids = 7;
+  optional google.protobuf.Timestamp created_at = 8;
+  optional google.protobuf.Timestamp modified_at = 9;
+  // The site this one lies within (a building inside a campus), of the same organization. A run in
+  // this site draws on its own assets first, then its parent's, up the chain, then the whole fleet.
+  // On an update: absent keeps the current parent, present and blank makes it a top-level site.
+  optional string parent_theatre_id = 10;
+}
+
+message TheatreProtoDTOList {
+  repeated TheatreProtoDTO theatres = 1;
+}
+
+message ConnectorGetAllTheatresRequest {
+  RequestBase base = 1;
+  // Absent = every theatre platform-wide (system_admin use); present = one organization's own.
+  optional string organization_id = 2;
+}
+
+message GetTheatreByIdRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message CreateTheatreRequest {
+  RequestBase base = 1;
+  TheatreProtoDTO theatre = 2;
+}
+
+message UpdateTheatreRequest {
+  RequestBase base = 1;
+  string id = 2;
+  TheatreProtoDTO theatre = 3;
+}
+
+message DeleteTheatreRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message ConnectorTheatreResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    TheatreProtoDTOList theatre_list = 5;
+  }
+}
+
+message ConnectorTheatreSingleResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    TheatreProtoDTO theatre = 5;
+  }
+}
+
+message ConnectorDeleteTheatreResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bool deleted = 4;
+  optional GlobalErrorMessage error = 5;
+}
+
+message AssignUserToTheatreRequest {
+  RequestBase base = 1;
+  string user_id = 2;
+  string theatre_id = 3;
+}
+
+message RemoveUserFromTheatreRequest {
+  RequestBase base = 1;
+  string user_id = 2;
+  string theatre_id = 3;
+}
+
+message TheatreAssignmentResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional GlobalErrorMessage error = 4;
+}
+
+// ========== NO-FLY ZONES ==========
+
+message ListNoFlyZonesRequest {
+  RequestBase base = 1;
+  // Required: whose zones. There is no platform-wide listing -- a zone is always one organization's.
+  string organization_id = 2;
+  // True = only the zones currently enforced (what flight planning reads).
+  optional bool active_only = 3;
+}
+
+message UpsertNoFlyZoneRequest {
+  RequestBase base = 1;
+  // id, organization_id and a POLYGON area of at least three vertices are required; type is always
+  // stored as NO_FLY. Unset enforcement_type = HARD_BLOCK, unset active = true.
+  MissionZoneProtoDTO zone = 2;
+}
+
+message DeleteNoFlyZoneRequest {
+  RequestBase base = 1;
+  string id = 2;
+  string organization_id = 3;
+}
+
+message NoFlyZoneListResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional GlobalErrorMessage error = 4;
+  repeated MissionZoneProtoDTO zones = 5;
+}
+
+message NoFlyZoneSingleResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional GlobalErrorMessage error = 4;
+  optional MissionZoneProtoDTO zone = 5;
+}
+
+message DeleteNoFlyZoneResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional GlobalErrorMessage error = 4;
+  bool deleted = 5;
+}
+
+// ========== LICENSE ACTIVATION CREDENTIALS ==========
+
+message ProvisionLicensedOrganizationRequest {
+  RequestBase base = 1;
+  // Required UUID: the organization_id claim of the verified license lease.
+  string organization_id = 2;
+  // Required: the organization's name (the license's organization_name claim, or what the
+  // administrator entered when the license carries none).
+  string name = 3;
+  string description = 4;
+  // Required: the activation of that license; credentials.organization_id must equal organization_id.
+  LicenseActivationCredentialsProtoDTO credentials = 5;
+}
+
+message ProvisionLicensedOrganizationResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional GlobalErrorMessage error = 4;
+  // The created organization, or the existing one when already_exists.
+  optional OrganizationProtoDTO organization = 5;
+  // The id already existed: nothing was created and no credentials were stored.
+  bool already_exists = 6;
+}
+
+message LicenseActivationCredentialsProtoDTO {
+  // The organization the activation licenses (an existing organization; deleting it deletes this).
+  string organization_id = 1;
+  // The hub's activation id. Not secret: every lease carries it as activation_id.
+  string activation_id = 2;
+  // The activation token, sealed by admin-console: nonce(12) || AES-256-GCM ciphertext+tag.
+  bytes sealed_token = 3;
+  // How sealed_token was sealed, so a later key or scheme change can tell old records apart.
+  string sealing_scheme = 4;
+  optional google.protobuf.Timestamp created_at = 5;
+  optional google.protobuf.Timestamp modified_at = 6;
+}
+
+message ListLicenseActivationCredentialsRequest {
+  RequestBase base = 1;
+}
+
+message GetLicenseActivationCredentialsRequest {
+  RequestBase base = 1;
+  string organization_id = 2;
+}
+
+message PutLicenseActivationCredentialsRequest {
+  RequestBase base = 1;
+  // organization_id, activation_id, sealed_token and sealing_scheme are required.
+  LicenseActivationCredentialsProtoDTO credentials = 2;
+}
+
+message DeleteLicenseActivationCredentialsRequest {
+  RequestBase base = 1;
+  string organization_id = 2;
+}
+
+message LicenseActivationCredentialsListResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional GlobalErrorMessage error = 4;
+  repeated LicenseActivationCredentialsProtoDTO credentials = 5;
+}
+
+message LicenseActivationCredentialsSingleResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional GlobalErrorMessage error = 4;
+  // Unset on a Get for an organization that has none.
+  optional LicenseActivationCredentialsProtoDTO credentials = 5;
+}
+
+message DeleteLicenseActivationCredentialsResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  optional GlobalErrorMessage error = 4;
+  bool deleted = 5;
+}
+
+// ========== EVENT TRIGGERS ==========
+
+message EventTriggerProtoDTO {
+  optional string id = 1;
+  string name = 2;
+  bool active = 3;
+  // DETECTION | TELEMETRY_THRESHOLD | ASSET_STATUS | WEBHOOK | INTEGRATION -- plain string, validated server-side
+  // against a real enum, same "proto stays a plain string, Java owns the closed vocabulary" trade
+  // PolicyProtoDTO.scope already makes.
+  string event_type = 4;
+  // DETECTION: filters which asset's detections this watches, blank = any registered asset.
+  // TELEMETRY_THRESHOLD / ASSET_STATUS: which asset's telemetry this watches, blank = any
+  // registered asset (checked each poll). Unused for WEBHOOK.
+  optional string asset_sn = 5;
+  optional string object_type = 6;      // DETECTION filter, e.g. "person"
+  optional float min_confidence = 7;    // DETECTION filter
+  // TELEMETRY_THRESHOLD / ASSET_STATUS: which AssetTelemetryProto field to read, e.g.
+  // "batteryPercentage", "altitude", "temperature", "isOnline", "operationalMode".
+  optional string telemetry_field = 8;
+  string comparison_operator = 9;       // LESS_THAN | GREATER_THAN | EQUALS | NOT_EQUALS
+  optional string comparison_value = 10;
+  // WEBHOOK: the shared secret an inbound POST must present. Generated server-side on create,
+  // never client-supplied.
+  optional string webhook_token = 11;
+  string application_id = 12;
+  string skill_id = 13;
+  optional string execution_parameters_json = 14;
+  bool auto_start = 15;
+  int32 cooldown_seconds = 16;
+  optional google.protobuf.Timestamp last_fired_at = 17;
+  optional google.protobuf.Timestamp created_at = 18;
+  optional google.protobuf.Timestamp modified_at = 19;
+  // INTEGRATION: the Integration Hub bridge whose messages this watches. The bridge is the unit
+  // that has a payload shape (its mapping names every field), so it is what a condition can be
+  // written against -- the same reason a capability contract follows a bridge and not a connector.
+  // Unused for every other event type.
+  optional string bridge_id = 20;
+  // DETECTION: which asset runs the Application. Blank or DETECTING_ASSET -- the asset that saw it
+  // (the behaviour before this field). POLICY_SELECTED -- the platform's asset selection picks one,
+  // aimed at the detection's position (e.g. the nearest aircraft to what a radar saw). Plain string,
+  // validated server-side, like event_type.
+  optional string dispatch_target = 21;
+  // 0..100, how much this alarm matters. Carried into the execution it starts (options.priority):
+  // an asset busy with another execution is only taken over when this is strictly higher than that
+  // execution's priority. Unset on the wire = 75: above scheduled routine work (50), far above a
+  // manual run (0).
+  optional int32 priority = 22;
+  // The organization this trigger belongs to. Set server-side from the caller's token when it is
+  // created (a system admin may choose one); every execution it starts carries it, so policy
+  // selection, an Application's organization scope and who may see the run all work. Unset = a
+  // system-wide trigger, visible to system admins only.
+  optional string organization_id = 23;
+  // DETECTION / TELEMETRY_THRESHOLD / ASSET_STATUS: the site (theatre) this trigger protects. Set,
+  // only events whose position lies inside that theatre's geo_zone fire it, and the run it starts
+  // records the theatre and chooses its assets from the site first. Unset = anywhere, as before.
+  // On an update: absent keeps the current site, present and blank clears it.
+  optional string theatre_id = 24;
+  // Output only: why the platform switched this trigger off (its Application was deleted, its
+  // Skill is no longer in the version it would run, or that version needs an input the trigger
+  // never provides). Cleared when the trigger is switched on again.
+  optional string attention_reason = 25;
+}
+
+message EventTriggerProtoDTOList {
+  repeated EventTriggerProtoDTO event_triggers = 1;
+}
+
+message ConnectorGetAllEventTriggersRequest {
+  RequestBase base = 1;
+  // True restricts to active triggers only -- what mission-autonomy's polling evaluator uses;
+  // the admin screen leaves this false to show everything, active or not.
+  bool active_only = 2;
+}
+
+message GetEventTriggerByIdRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message CreateEventTriggerRequest {
+  RequestBase base = 1;
+  EventTriggerProtoDTO event_trigger = 2;
+}
+
+message UpdateEventTriggerRequest {
+  RequestBase base = 1;
+  string id = 2;
+  EventTriggerProtoDTO event_trigger = 3;
+}
+
+message DeleteEventTriggerRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message RecordEventTriggerFiredRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message RegenerateEventTriggerWebhookTokenRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+// The webhook firing path (admin-console) looks a trigger up by the token an inbound POST
+// presents, not by id -- the caller (an external system) only ever knows the token.
+message GetEventTriggerByWebhookTokenRequest {
+  RequestBase base = 1;
+  string token = 2;
+}
+
+message ConnectorEventTriggerResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    EventTriggerProtoDTOList event_trigger_list = 5;
+  }
+}
+
+message ConnectorEventTriggerSingleResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    EventTriggerProtoDTO event_trigger = 5;
+  }
+}
+
+message ConnectorDeleteEventTriggerResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bool deleted = 4;
+  optional GlobalErrorMessage error = 5;
+}
+
+message DetectionSummaryProtoDTO {
+  string id = 1;
+  string asset_sn = 2;
+  string object_type = 3;
+  optional float confidence = 4;
+  google.protobuf.Timestamp detected_at = 5;
+  optional string object_id = 6;
+  optional DetectionPosition position = 7;
+}
+
+message ListRecentDetectionsRequest {
+  RequestBase base = 1;
+  google.protobuf.Timestamp since = 2;
+  optional string asset_sn = 3;
+  optional string object_type = 4;
+  optional float min_confidence = 5;
+}
+
+message ConnectorDetectionListResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  repeated DetectionSummaryProtoDTO detections = 4;
+  optional GlobalErrorMessage error = 5;
+}
+
+message GetLatestTelemetryForAssetRequest {
+  RequestBase base = 1;
+  string asset_sn = 2;
+}
+
+message ConnectorTelemetrySingleResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    AssetTelemetryProto telemetry = 5;
+  }
+}
+
+// ========== TECHNICAL CONFIG ==========
+
+message TechnicalConfigProtoDTO {
+  string id = 1;
+  string config_key = 2;
+  optional string config_value = 3;
+  string value_type = 4;
+  string scope = 5;
+  optional string scope_target = 6;
+  bool active = 7;
+  optional string description = 8;
+  optional string organization_id = 9;
+  optional google.protobuf.Timestamp created_at = 10;
+  optional google.protobuf.Timestamp modified_at = 11;
+}
+
+message TechnicalConfigProtoDTOList {
+  repeated TechnicalConfigProtoDTO configs = 1;
+}
+
+message ConnectorGetConfigsRequest {
+  RequestBase base = 1;
+  optional string scope = 2;
+  optional string scope_target = 3;
+  // False (default) matches every prior caller's expectation (ConfigSyncService's runtime-cache
+  // sync included) -- only the admin console's "show deactivated configs" view sets this true.
+  bool include_inactive = 4;
+}
+
+message ConnectorConfigResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    TechnicalConfigProtoDTOList config_list = 5;
+  }
+}
+
+message GetTechnicalConfigByIdRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message CreateTechnicalConfigRequest {
+  RequestBase base = 1;
+  TechnicalConfigProtoDTO config = 2;
+}
+
+message UpdateTechnicalConfigRequest {
+  RequestBase base = 1;
+  string id = 2;
+  TechnicalConfigProtoDTO config = 3;
+}
+
+message DeleteTechnicalConfigRequest {
+  RequestBase base = 1;
+  string id = 2;
+}
+
+message ConnectorConfigSingleResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  oneof response {
+    GlobalErrorMessage error = 4;
+    TechnicalConfigProtoDTO config = 5;
+  }
+}
+
+message ConnectorDeleteConfigResponse {
+  string tid = 1;
+  bool has_errors = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bool deleted = 4;
+  optional GlobalErrorMessage error = 5;
+}
