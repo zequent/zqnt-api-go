@@ -965,8 +965,10 @@ type CapabilitySet struct {
 	SnapshotState SnapshotState          `protobuf:"varint,7,opt,name=snapshot_state,json=snapshotState,proto3,enum=zqnt.capability.v3.SnapshotState" json:"snapshot_state,omitempty"`
 	// The device-specific values this asset sends in TelemetrySample.details.
 	TelemetryFields []*TelemetryField `protobuf:"bytes,8,rep,name=telemetry_fields,json=telemetryFields,proto3" json:"telemetry_fields,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Devices mounted on the asset. A full snapshot: a payload missing from the next report is detached.
+	Payloads      []*Payload `protobuf:"bytes,9,rep,name=payloads,proto3" json:"payloads,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CapabilitySet) Reset() {
@@ -1055,6 +1057,135 @@ func (x *CapabilitySet) GetTelemetryFields() []*TelemetryField {
 	return nil
 }
 
+func (x *CapabilitySet) GetPayloads() []*Payload {
+	if x != nil {
+		return x.Payloads
+	}
+	return nil
+}
+
+// A device mounted on the asset: camera, gimbal, speaker, spotlight, sprayer, sensor.
+type Payload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable within the asset; capabilities with Target PAYLOAD name it in Target.ref.
+	Ref string `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	// "camera", "speaker", "spotlight", "sprayer", "sensor", ... Data, not an enum.
+	Kind         string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Vendor       string `protobuf:"bytes,3,opt,name=vendor,proto3" json:"vendor,omitempty"`
+	Model        string `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
+	SerialNumber string `protobuf:"bytes,5,opt,name=serial_number,json=serialNumber,proto3" json:"serial_number,omitempty"`
+	// Mount position, e.g. DJI gimbal 0..2.
+	SlotIndex       *int32 `protobuf:"varint,6,opt,name=slot_index,json=slotIndex,proto3,oneof" json:"slot_index,omitempty"`
+	FirmwareVersion string `protobuf:"bytes,7,opt,name=firmware_version,json=firmwareVersion,proto3" json:"firmware_version,omitempty"`
+	// The vendor's id, e.g. DJI "type-subtype-gimbalindex".
+	ExternalId string `protobuf:"bytes,8,opt,name=external_id,json=externalId,proto3" json:"external_id,omitempty"`
+	// The asset itself or a sub-asset (Target SUB_ASSET).
+	MountedOn     *Target           `protobuf:"bytes,9,opt,name=mounted_on,json=mountedOn,proto3" json:"mounted_on,omitempty"`
+	Metadata      map[string]string `protobuf:"bytes,10,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Payload) Reset() {
+	*x = Payload{}
+	mi := &file_zqnt_capability_v3_capability_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Payload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Payload) ProtoMessage() {}
+
+func (x *Payload) ProtoReflect() protoreflect.Message {
+	mi := &file_zqnt_capability_v3_capability_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Payload.ProtoReflect.Descriptor instead.
+func (*Payload) Descriptor() ([]byte, []int) {
+	return file_zqnt_capability_v3_capability_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Payload) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *Payload) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Payload) GetVendor() string {
+	if x != nil {
+		return x.Vendor
+	}
+	return ""
+}
+
+func (x *Payload) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *Payload) GetSerialNumber() string {
+	if x != nil {
+		return x.SerialNumber
+	}
+	return ""
+}
+
+func (x *Payload) GetSlotIndex() int32 {
+	if x != nil && x.SlotIndex != nil {
+		return *x.SlotIndex
+	}
+	return 0
+}
+
+func (x *Payload) GetFirmwareVersion() string {
+	if x != nil {
+		return x.FirmwareVersion
+	}
+	return ""
+}
+
+func (x *Payload) GetExternalId() string {
+	if x != nil {
+		return x.ExternalId
+	}
+	return ""
+}
+
+func (x *Payload) GetMountedOn() *Target {
+	if x != nil {
+		return x.MountedOn
+	}
+	return nil
+}
+
+func (x *Payload) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 type TelemetryField struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Dotted key in TelemetrySample.details, e.g. "dock.cover_state".
@@ -1071,7 +1202,7 @@ type TelemetryField struct {
 
 func (x *TelemetryField) Reset() {
 	*x = TelemetryField{}
-	mi := &file_zqnt_capability_v3_capability_proto_msgTypes[7]
+	mi := &file_zqnt_capability_v3_capability_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1083,7 +1214,7 @@ func (x *TelemetryField) String() string {
 func (*TelemetryField) ProtoMessage() {}
 
 func (x *TelemetryField) ProtoReflect() protoreflect.Message {
-	mi := &file_zqnt_capability_v3_capability_proto_msgTypes[7]
+	mi := &file_zqnt_capability_v3_capability_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1096,7 +1227,7 @@ func (x *TelemetryField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelemetryField.ProtoReflect.Descriptor instead.
 func (*TelemetryField) Descriptor() ([]byte, []int) {
-	return file_zqnt_capability_v3_capability_proto_rawDescGZIP(), []int{7}
+	return file_zqnt_capability_v3_capability_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *TelemetryField) GetKey() string {
@@ -1194,7 +1325,7 @@ const file_zqnt_capability_v3_capability_proto_rawDesc = "" +
 	"\x10completion_event\x18\x15 \x01(\tR\x0fcompletionEvent\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbc\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf5\x03\n" +
 	"\rCapabilitySet\x12\x19\n" +
 	"\basset_sn\x18\x01 \x01(\tR\aassetSn\x12\x1d\n" +
 	"\n" +
@@ -1206,7 +1337,27 @@ const file_zqnt_capability_v3_capability_proto_rawDesc = "" +
 	"validUntil\x12\x1a\n" +
 	"\brevision\x18\x06 \x01(\tR\brevision\x12H\n" +
 	"\x0esnapshot_state\x18\a \x01(\x0e2!.zqnt.capability.v3.SnapshotStateR\rsnapshotState\x12M\n" +
-	"\x10telemetry_fields\x18\b \x03(\v2\".zqnt.capability.v3.TelemetryFieldR\x0ftelemetryFields\"\xbb\x01\n" +
+	"\x10telemetry_fields\x18\b \x03(\v2\".zqnt.capability.v3.TelemetryFieldR\x0ftelemetryFields\x127\n" +
+	"\bpayloads\x18\t \x03(\v2\x1b.zqnt.capability.v3.PayloadR\bpayloads\"\xc0\x03\n" +
+	"\aPayload\x12\x10\n" +
+	"\x03ref\x18\x01 \x01(\tR\x03ref\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x16\n" +
+	"\x06vendor\x18\x03 \x01(\tR\x06vendor\x12\x14\n" +
+	"\x05model\x18\x04 \x01(\tR\x05model\x12#\n" +
+	"\rserial_number\x18\x05 \x01(\tR\fserialNumber\x12\"\n" +
+	"\n" +
+	"slot_index\x18\x06 \x01(\x05H\x00R\tslotIndex\x88\x01\x01\x12)\n" +
+	"\x10firmware_version\x18\a \x01(\tR\x0ffirmwareVersion\x12\x1f\n" +
+	"\vexternal_id\x18\b \x01(\tR\n" +
+	"externalId\x129\n" +
+	"\n" +
+	"mounted_on\x18\t \x01(\v2\x1a.zqnt.capability.v3.TargetR\tmountedOn\x12E\n" +
+	"\bmetadata\x18\n" +
+	" \x03(\v2).zqnt.capability.v3.Payload.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\r\n" +
+	"\v_slot_index\"\xbb\x01\n" +
 	"\x0eTelemetryField\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12:\n" +
 	"\x04type\x18\x02 \x01(\x0e2&.zqnt.capability.v3.TelemetryValueTypeR\x04type\x12\x12\n" +
@@ -1270,7 +1421,7 @@ func file_zqnt_capability_v3_capability_proto_rawDescGZIP() []byte {
 }
 
 var file_zqnt_capability_v3_capability_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_zqnt_capability_v3_capability_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_zqnt_capability_v3_capability_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_zqnt_capability_v3_capability_proto_goTypes = []any{
 	(TargetType)(0),                // 0: zqnt.capability.v3.TargetType
 	(CapabilityState)(0),           // 1: zqnt.capability.v3.CapabilityState
@@ -1286,39 +1437,44 @@ var file_zqnt_capability_v3_capability_proto_goTypes = []any{
 	(*CapabilityRequirements)(nil), // 11: zqnt.capability.v3.CapabilityRequirements
 	(*Capability)(nil),             // 12: zqnt.capability.v3.Capability
 	(*CapabilitySet)(nil),          // 13: zqnt.capability.v3.CapabilitySet
-	(*TelemetryField)(nil),         // 14: zqnt.capability.v3.TelemetryField
-	nil,                            // 15: zqnt.capability.v3.Capability.MetadataEntry
-	(*structpb.Struct)(nil),        // 16: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),  // 17: google.protobuf.Timestamp
+	(*Payload)(nil),                // 14: zqnt.capability.v3.Payload
+	(*TelemetryField)(nil),         // 15: zqnt.capability.v3.TelemetryField
+	nil,                            // 16: zqnt.capability.v3.Capability.MetadataEntry
+	nil,                            // 17: zqnt.capability.v3.Payload.MetadataEntry
+	(*structpb.Struct)(nil),        // 18: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),  // 19: google.protobuf.Timestamp
 }
 var file_zqnt_capability_v3_capability_proto_depIdxs = []int32{
 	0,  // 0: zqnt.capability.v3.Target.type:type_name -> zqnt.capability.v3.TargetType
 	2,  // 1: zqnt.capability.v3.CommandSafety.risk:type_name -> zqnt.capability.v3.CommandRisk
-	16, // 2: zqnt.capability.v3.CapabilityEventSpec.payload_schema:type_name -> google.protobuf.Struct
-	16, // 3: zqnt.capability.v3.CapabilityRequirements.properties:type_name -> google.protobuf.Struct
+	18, // 2: zqnt.capability.v3.CapabilityEventSpec.payload_schema:type_name -> google.protobuf.Struct
+	18, // 3: zqnt.capability.v3.CapabilityRequirements.properties:type_name -> google.protobuf.Struct
 	1,  // 4: zqnt.capability.v3.Capability.state:type_name -> zqnt.capability.v3.CapabilityState
 	7,  // 5: zqnt.capability.v3.Capability.target:type_name -> zqnt.capability.v3.Target
-	16, // 6: zqnt.capability.v3.Capability.input_schema:type_name -> google.protobuf.Struct
-	16, // 7: zqnt.capability.v3.Capability.output_schema:type_name -> google.protobuf.Struct
+	18, // 6: zqnt.capability.v3.Capability.input_schema:type_name -> google.protobuf.Struct
+	18, // 7: zqnt.capability.v3.Capability.output_schema:type_name -> google.protobuf.Struct
 	8,  // 8: zqnt.capability.v3.Capability.safety:type_name -> zqnt.capability.v3.CommandSafety
 	9,  // 9: zqnt.capability.v3.Capability.errors:type_name -> zqnt.capability.v3.CapabilityErrorSpec
 	10, // 10: zqnt.capability.v3.Capability.events:type_name -> zqnt.capability.v3.CapabilityEventSpec
 	11, // 11: zqnt.capability.v3.Capability.requirements:type_name -> zqnt.capability.v3.CapabilityRequirements
 	4,  // 12: zqnt.capability.v3.Capability.source:type_name -> zqnt.capability.v3.CapabilitySource
-	16, // 13: zqnt.capability.v3.Capability.constraints:type_name -> google.protobuf.Struct
-	15, // 14: zqnt.capability.v3.Capability.metadata:type_name -> zqnt.capability.v3.Capability.MetadataEntry
+	18, // 13: zqnt.capability.v3.Capability.constraints:type_name -> google.protobuf.Struct
+	16, // 14: zqnt.capability.v3.Capability.metadata:type_name -> zqnt.capability.v3.Capability.MetadataEntry
 	3,  // 15: zqnt.capability.v3.Capability.completion:type_name -> zqnt.capability.v3.CompletionMode
 	12, // 16: zqnt.capability.v3.CapabilitySet.capabilities:type_name -> zqnt.capability.v3.Capability
-	17, // 17: zqnt.capability.v3.CapabilitySet.observed_at:type_name -> google.protobuf.Timestamp
-	17, // 18: zqnt.capability.v3.CapabilitySet.valid_until:type_name -> google.protobuf.Timestamp
+	19, // 17: zqnt.capability.v3.CapabilitySet.observed_at:type_name -> google.protobuf.Timestamp
+	19, // 18: zqnt.capability.v3.CapabilitySet.valid_until:type_name -> google.protobuf.Timestamp
 	5,  // 19: zqnt.capability.v3.CapabilitySet.snapshot_state:type_name -> zqnt.capability.v3.SnapshotState
-	14, // 20: zqnt.capability.v3.CapabilitySet.telemetry_fields:type_name -> zqnt.capability.v3.TelemetryField
-	6,  // 21: zqnt.capability.v3.TelemetryField.type:type_name -> zqnt.capability.v3.TelemetryValueType
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	15, // 20: zqnt.capability.v3.CapabilitySet.telemetry_fields:type_name -> zqnt.capability.v3.TelemetryField
+	14, // 21: zqnt.capability.v3.CapabilitySet.payloads:type_name -> zqnt.capability.v3.Payload
+	7,  // 22: zqnt.capability.v3.Payload.mounted_on:type_name -> zqnt.capability.v3.Target
+	17, // 23: zqnt.capability.v3.Payload.metadata:type_name -> zqnt.capability.v3.Payload.MetadataEntry
+	6,  // 24: zqnt.capability.v3.TelemetryField.type:type_name -> zqnt.capability.v3.TelemetryValueType
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_zqnt_capability_v3_capability_proto_init() }
@@ -1326,13 +1482,14 @@ func file_zqnt_capability_v3_capability_proto_init() {
 	if File_zqnt_capability_v3_capability_proto != nil {
 		return
 	}
+	file_zqnt_capability_v3_capability_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_zqnt_capability_v3_capability_proto_rawDesc), len(file_zqnt_capability_v3_capability_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
