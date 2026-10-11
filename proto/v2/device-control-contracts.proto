@@ -1,0 +1,412 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "base.proto";
+import "asset.proto";
+import "detection.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.devicecontrol.proto";
+option java_outer_classname = "DeviceControlContractsProto";
+option go_package = "gen/devicecontrol/contracts/proto";
+
+enum LiveDataServiceCommand{
+  LIVE_DATA_COMMAND_START_TELEMETRY_STREAM = 0;
+  LIVE_DATA_COMMAND_GET_TELEMETRY_DATA = 1;
+  LIVE_DATA_COMMAND_STOP_TELEMETRY_STREAM = 2;
+  LIVE_DATA_COMMAND_START_LIVE_STREAM = 3;
+  LIVE_DATA_COMMAND_STOP_LIVE_STREAM = 4;
+}
+
+message CommandResponse {
+  optional bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    google.protobuf.Empty empty = 3;
+    GlobalErrorMessage error = 4;
+    CommandProgress progress = 5;
+    LiveStreamStartResponse live_stream_start_response = 6;
+  }
+}
+
+message CustomCommandRequest {
+  RequestBase base = 1;
+  string command_id = 2;
+  google.protobuf.Struct params = 3;
+  reserved 4;
+  reserved "component_id";
+  CapabilityTarget target = 5;
+}
+
+message CustomCommandResponse {
+  optional bool has_errors = 1;
+  ResponseMeta meta = 2;
+  string command_id = 3;
+  oneof response {
+    google.protobuf.Struct result = 4;
+    google.protobuf.Empty empty = 5;
+    GlobalErrorMessage error = 6;
+    CommandProgress progress = 7;
+  }
+}
+
+enum CapabilityState {
+  CAPABILITY_STATE_UNSPECIFIED = 0;
+  CAPABILITY_STATE_AVAILABLE = 1;
+  CAPABILITY_STATE_TEMPORARILY_UNAVAILABLE = 2;
+  CAPABILITY_STATE_UNSUPPORTED = 3;
+  CAPABILITY_STATE_REQUIRES_AUTHORIZATION = 4;
+}
+
+// Freshness of the complete capability snapshot returned by an edge adapter.
+enum CapabilitySnapshotState {
+  CAPABILITY_SNAPSHOT_STATE_UNSPECIFIED = 0;
+  CAPABILITY_SNAPSHOT_STATE_CURRENT = 1;
+  CAPABILITY_SNAPSHOT_STATE_STALE = 2;
+  CAPABILITY_SNAPSHOT_STATE_NO_DATA = 3;
+}
+
+enum CapabilityTargetType {
+  CAPABILITY_TARGET_TYPE_UNSPECIFIED = 0;
+  CAPABILITY_TARGET_TYPE_ASSET = 1;
+  CAPABILITY_TARGET_TYPE_SUB_ASSET = 2;
+  CAPABILITY_TARGET_TYPE_PAYLOAD = 3;
+  CAPABILITY_TARGET_TYPE_COMPONENT = 4;
+}
+
+// Identifies the runtime object that provides and executes a capability.
+message CapabilityTarget {
+  CapabilityTargetType type = 1;
+  // Stable within an asset. Empty only when type is ASSET.
+  optional string target_ref = 2;
+}
+
+// One error a command's execution can end in — part of the command contract alongside
+// input_schema/output_schema, so a caller (Console, SDK, AI Agent) can know not just what to send
+// and what comes back, but what can go wrong, without probing the device.
+message CapabilityErrorProto {
+  string code = 1;
+  optional string description = 2;
+}
+
+// One event a command (or the skill it belongs to) can emit while or after executing.
+message CapabilityEventProto {
+  string name = 1;
+  optional string description = 2;
+  // JSON Schema describing the event payload.
+  google.protobuf.Struct payload_schema = 3;
+}
+
+// What a command needs in order to be usable at all — feeds "can this Skill run on this
+// Asset/Site?" checks later; still just declarative data here, no enforcement logic implied.
+message CapabilityRequirementsProto {
+  repeated string asset_types = 1;
+  repeated string payloads = 2;
+  repeated string runtime_features = 3;
+  // Free-form property requirements, e.g. {"camera.resolution": {"supported": ["4K"]}}.
+  google.protobuf.Struct properties = 4;
+}
+
+// Where a Capability's implementation actually comes from — the platform interacts with all of
+// them through the same Capability contract regardless of source.
+enum CapabilitySourceProto {
+  CAPABILITY_SOURCE_UNSPECIFIED = 0;
+  CAPABILITY_SOURCE_BUILT_IN = 1;
+  CAPABILITY_SOURCE_EDGE_ADAPTER = 2;
+  CAPABILITY_SOURCE_RUNTIME = 3;
+  CAPABILITY_SOURCE_USER = 4;
+  CAPABILITY_SOURCE_APPLICATION = 5;
+  CAPABILITY_SOURCE_INTEGRATION = 6;
+  CAPABILITY_SOURCE_AI_GENERATED = 7;
+}
+
+message Capability {
+  string command_id = 1;
+  string display_name = 2;
+  reserved 3;
+  reserved "available";
+  optional string unavailable_reason = 4;
+  map<string, string> metadata = 5;
+  CapabilityState state = 6;
+  google.protobuf.Struct constraints = 7;
+  optional string description = 8;
+  // JSON Schema describing params accepted by CustomCommandRequest.
+  google.protobuf.Struct input_schema = 9;
+  // JSON Schema describing the dynamic result returned by CustomCommandResponse.
+  google.protobuf.Struct output_schema = 10;
+  CapabilityTarget target = 11;
+  // Adapter-defined version of the input/output contract. Change it whenever either schema
+  // changes incompatibly so persisted dynamic tasks can detect contract drift.
+  optional string schema_version = 12;
+
+  // --- Additive: unset on every adapter that predates this contract; none of the above changes
+  // meaning or requires an adapter to be touched. ---
+
+  repeated CapabilityErrorProto errors = 13;
+  repeated CapabilityEventProto events = 14;
+  optional CapabilityRequirementsProto requirements = 15;
+  // Groups sibling commands into one logical Skill for the registry/catalog view (e.g. a
+  // "drone-flight" skill made of start/pause/resume/stop commands). When unset, the catalog
+  // falls back to grouping by the command_id's own leading namespace segment (e.g. "flight" from
+  // "flight.takeoff") — existing adapters need no changes to appear correctly grouped.
+  optional string skill_id = 16;
+  optional CapabilitySourceProto source = 17;
+  // Human-readable origin, e.g. "DJI Adapter" or "Zequent Platform" for built-ins.
+  optional string provider = 18;
+}
+
+message AssetCapabilities {
+  string asset_sn = 1;
+  string asset_type = 2;
+  repeated Capability capabilities = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  optional google.protobuf.Timestamp valid_until = 5;
+  optional string revision = 6;
+  CapabilitySnapshotState snapshot_state = 7;
+}
+
+message AssetCapabilitiesRequest {
+  string sn = 1;
+  optional string asset_id = 2;
+  RequestBase base = 3;
+  optional CapabilityTarget target = 4;
+}
+
+// Runtime payload detected by an edge adapter. payload_ref is the stable link used
+// by capabilities and commands; database IDs are resolved by core services.
+message DetectedPayload {
+  string payload_ref = 1;
+  optional string external_id = 2;
+  optional string serial_number = 3;
+  optional int32 slot_index = 4;
+  string kind = 5;
+  string vendor = 6;
+  string model = 7;
+  optional string firmware_version = 8;
+  optional string library_version = 9;
+  google.protobuf.Struct state = 10;
+}
+
+// Complete scheduled runtime snapshot pushed by an edge adapter. Payloads absent
+// from the next current snapshot are considered detached after TTL evaluation.
+message ReportAssetRuntimeRequest {
+  RequestBase base = 1;
+  string asset_sn = 2;
+  string revision = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  repeated DetectedPayload payloads = 5;
+  repeated Capability capabilities = 6;
+}
+
+message ReportAssetRuntimeResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    google.protobuf.Empty empty = 3;
+    GlobalErrorMessage error = 4;
+  }
+  optional string accepted_revision = 5;
+}
+
+message AssetCapabilitiesResponse {
+  AssetCapabilities capabilities = 1;
+  optional GlobalErrorMessage error = 2;
+}
+
+message GetAssetRuntimeRequest {
+  RequestBase base = 1;
+  string asset_sn = 2;
+  optional string asset_id = 3;
+}
+
+// Client-facing view of the latest payload and capability snapshot cached by
+// Remote Control.
+message AssetRuntimeSnapshot {
+  string asset_sn = 1;
+  repeated DetectedPayload payloads = 2;
+  repeated Capability capabilities = 3;
+  string revision = 4;
+  CapabilitySnapshotState snapshot_state = 5;
+  google.protobuf.Timestamp observed_at = 6;
+  optional google.protobuf.Timestamp valid_until = 7;
+}
+
+message AssetRuntimeResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    AssetRuntimeSnapshot runtime = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
+
+// ========== SHARED COORDINATE AND CONTROL MESSAGES ==========
+
+message GeoCoordinate {
+  double latitude = 1;
+  double longitude = 2;
+  double altitude = 3;
+}
+
+message ReturnToHomeRequest{
+  optional float altitude = 1;
+}
+
+message ManualControlRequest{
+  string client_id = 1;
+  string user_id = 2;
+  optional string reason = 3;
+  string session_id = 4;
+}
+
+message ManualControlInput{
+  optional float roll = 1;
+  optional float pitch = 2;
+  optional float yaw = 3;
+  optional float throttle = 4;
+  optional float gimbal_pitch = 5;
+}
+
+message LiveStreamState{
+  string video_id = 1;
+  string stream_url = 2;
+  bool is_live = 3;
+  google.protobuf.Timestamp started_at = 4;
+  AssetTypeEnum asset_type = 5;
+}
+
+message LiveStreamStartResponse {
+  string stream_url = 1;
+  string video_id = 2;
+}
+
+message ChangeCameraLensRequest{
+  optional string lens = 1;
+}
+
+message ChangeCameraZoomRequest{
+  optional string lens = 1;
+  optional int32 zoom = 2;
+}
+
+message ManualControlState {
+  ManualControlStateEnum state = 1;
+  string sn = 2;
+  optional string asset_id = 3;
+  bool active = 4;
+  string client_id = 5;
+  string user_id = 6;
+  string session_id = 7;
+}
+
+message EmptyCommandRequest {
+  RequestBase base = 1;
+}
+
+message CoordinateCommandRequest {
+  RequestBase base = 1;
+  GeoCoordinate coordinate = 2;
+  // RemoteControlService.GoTo only: fly straight through a HARD_BLOCK or REQUIRE_APPROVAL no-fly
+  // zone that would otherwise refuse the fly-to. Honoured only for an organization admin or a system
+  // admin (the caller's own token), recorded in the execution's safety audit, refused for anybody
+  // else -- the same rule as SkillExecutionOptionsProto.no_fly_zone_override, which it sets. Ignored
+  // by TakeOff and never sent to an edge adapter.
+  optional bool no_fly_zone_override = 3;
+}
+
+message LookAtCommandRequest {
+  RequestBase base = 1;
+  GeoCoordinate coordinate = 2;
+  optional string payload_index = 3;
+  optional bool locked = 4;
+}
+
+message ReturnToHomeCommandRequest {
+  RequestBase base = 1;
+  ReturnToHomeRequest request = 2;
+}
+
+message ManualControlCommandRequest {
+  RequestBase base = 1;
+  ManualControlRequest request = 2;
+}
+
+message ManualControlInputCommandRequest {
+  RequestBase base = 1;
+  ManualControlInput request = 2;
+}
+
+message ToggleCommandRequest {
+  RequestBase base = 1;
+  bool enabled = 2;
+}
+
+message SpotlightControlRequest{
+  RequestBase base = 1;
+  bool light_switch = 2;
+}
+
+message TaskCommandRequest {
+  RequestBase base = 1;
+  string task_id = 2;
+}
+
+message CloseCoverCommandRequest {
+  RequestBase base = 1;
+  optional bool force = 2;
+}
+
+message BootSubAssetCommandRequest {
+  RequestBase base = 1;
+  bool boot_up = 2;
+}
+
+message ChangeAcModeCommandRequest {
+  RequestBase base = 1;
+  AssetAirConditionerStateEnum mode = 2;
+}
+
+message ChangeCameraLensCommandRequest {
+  RequestBase base = 1;
+  ChangeCameraLensRequest request = 2;
+}
+
+message ChangeCameraZoomCommandRequest {
+  RequestBase base = 1;
+  ChangeCameraZoomRequest request = 2;
+}
+
+message DetectionControlCommandRequest {
+  RequestBase base = 1;
+  DetectionControlRequest request = 2;
+}
+
+message LiveStreamStartCommandRequest {
+  RequestBase base = 1;
+  LiveStreamStartCommandPayload request = 2;
+}
+
+message LiveStreamStopCommandRequest {
+  RequestBase base = 1;
+  LiveStreamStopCommandPayload request = 2;
+}
+
+message LiveStreamStartCommandPayload {
+  string video_id = 1;
+  string stream_server = 2;
+  LiveStreamTypeEnum stream_type = 3;
+  AssetTypeEnum asset_type = 4;
+}
+
+message LiveStreamStopCommandPayload {
+  string video_id = 1;
+}
+
+message RegisterAssetCommandRequest{
+  RequestBase base = 1;
+  AssetProtoDTO asset_dto = 2;
+}

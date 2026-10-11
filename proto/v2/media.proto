@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.media.proto";
+option java_outer_classname = "MediaProto";
+option go_package = "gen/media/proto";
+
+// Photos, videos and other files a device captured and uploaded to the platform's object storage.
+//
+// A device (e.g. a DJI dock) uploads into an inbox bucket under a key of its own choosing and then
+// reports the file with RegisterMediaFile. The connector attributes it to the execution that was
+// running on the asset -- and through it to the organization, Application and Skill -- moves it to
+// "<organization>/<application or skill>/<date>_<execution>/<file>" in the media bucket and keeps
+// a record of it. Files no execution explains land under "<organization>/Manual/<asset>/<date>/".
+
+enum MediaType {
+  MEDIA_TYPE_UNSPECIFIED = 0;
+  MEDIA_TYPE_PHOTO = 1;
+  MEDIA_TYPE_VIDEO = 2;
+  // Anything else the device uploads alongside, e.g. DJI's PPK/RTK files.
+  MEDIA_TYPE_OTHER = 3;
+}
+
+enum MediaFileStatus {
+  MEDIA_FILE_STATUS_UNSPECIFIED = 0;
+  // Moved into the media bucket under its folder.
+  MEDIA_FILE_STATUS_STORED = 1;
+  // Recorded, but still at its inbox key because moving it failed; retried on the next report.
+  MEDIA_FILE_STATUS_PENDING = 2;
+}
+
+message MediaCapturePosition {
+  double latitude = 1;
+  double longitude = 2;
+  // Metres, as the device reports them (DJI: ellipsoid height).
+  optional double absolute_altitude = 3;
+  // Metres above the takeoff point.
+  optional double relative_altitude = 4;
+  optional double gimbal_yaw = 5;
+}
+
+message MediaFileProtoDTO {
+  string id = 1;
+  MediaType media_type = 2;
+  MediaFileStatus status = 3;
+  string file_name = 4;
+  string content_type = 5;
+  int64 size_bytes = 6;
+
+  // Where it is now: the media bucket once STORED, the inbox while PENDING.
+  string bucket = 7;
+  string object_key = 8;
+  // Folder path in the media bucket, without the file name, e.g. "Acme/Fire Alarm Response/2026-09-26_3f9a1c2b".
+  string folder_path = 9;
+
+  // The asset that reported it (a dock reports for its aircraft) and, when known, the device that captured it.
+  string asset_sn = 10;
+  string device_sn = 11;
+
+  string organization_id = 12;
+  string organization_name = 13;
+  string execution_id = 14;
+  string application_id = 15;
+  string application_name = 16;
+  string skill_id = 17;
+  string skill_name = 18;
+
+  google.protobuf.Timestamp captured_at = 19;
+  google.protobuf.Timestamp uploaded_at = 20;
+  optional MediaCapturePosition position = 21;
+
+  // The device's own flight/task id (DJI: ext.flight_id).
+  string vendor_flight_id = 22;
+  // Vendor details that have no field of their own (payload model, is_original, ...).
+  map<string, string> metadata = 23;
+
+  // Short-lived presigned GET URL, filled on reads. Empty when the file cannot be served.
+  string download_url = 24;
+}
+
+message RegisterMediaFileRequest {
+  RequestBase base = 1;
+  // The asset the report came from (for DJI the dock / gateway SN).
+  string asset_sn = 2;
+  // The device that captured it, when the reporter knows it.
+  string device_sn = 3;
+  // Where the device uploaded it.
+  string source_bucket = 4;
+  string source_object_key = 5;
+  string file_name = 6;
+  // When the reporter knows the execution already (e.g. from the flight it started), it says so;
+  // otherwise the connector attributes by asset and time.
+  string execution_id = 7;
+  string vendor_flight_id = 8;
+  google.protobuf.Timestamp captured_at = 9;
+  optional MediaCapturePosition position = 10;
+  map<string, string> metadata = 11;
+}
+
+message ListMediaFilesRequest {
+  // Required unless the caller is allowed to see every organization (then empty = all).
+  string organization_id = 1;
+  // Only files in this folder (exact), e.g. "Acme/Fire Alarm Response". Empty = the root.
+  string folder_path = 2;
+  string execution_id = 3;
+  string asset_sn = 4;
+  int32 limit = 5;
+  string page_token = 6;
+}
+
+message ListMediaFilesResponse {
+  // Files directly in folder_path (not in its subfolders), newest capture first.
+  repeated MediaFileProtoDTO files = 1;
+  // Names of the immediate subfolders of folder_path.
+  repeated string folders = 2;
+  string next_page_token = 3;
+}
+
+message GetMediaFileRequest {
+  string id = 1;
+  // When set, the file must belong to this organization.
+  string organization_id = 2;
+}

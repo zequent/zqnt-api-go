@@ -1,0 +1,187 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "common.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.mission.proto";
+option java_outer_classname = "MissionAutonomyContractsProto";
+option go_package = "gen/missionautonomy/contracts/proto";
+
+// Shared mission-autonomy contracts used by core services that manage missions,
+// tasks, and schedulers. The service RPC definitions remain in their respective
+// service proto files.
+
+message GetMissionRequest {
+  RequestBase base = 1;
+  string mission_id = 2;
+}
+
+message CreateMissionRequest {
+  RequestBase base = 1;
+  MissionProtoDTO mission = 2;
+}
+
+message UpdateMissionRequest {
+  RequestBase base = 1;
+  string mission_id = 2;
+  MissionProtoDTO mission = 3;
+}
+
+message DeleteMissionRequest {
+  RequestBase base = 1;
+  string mission_id = 2;
+}
+
+message UploadMissionNfzZonesRequest {
+  RequestBase base = 1;
+  string mission_id = 2;
+  repeated MissionZoneProtoDTO zones = 3;
+  // Replaces existing mission NFZs atomically instead of merging them.
+  bool replace_existing = 4;
+}
+
+message GetTaskRequest {
+  RequestBase base = 1;
+  string task_id = 2;
+}
+
+message GetTaskByFlightIdRequest {
+  RequestBase base = 1;
+  string flight_id = 2;
+}
+
+message CreateTaskRequest {
+  RequestBase base = 1;
+  TaskProtoDTO task = 2;
+}
+
+message UpdateTaskRequest {
+  RequestBase base = 1;
+  string task_id = 2;
+  TaskProtoDTO task = 3;
+}
+
+message DeleteTaskRequest {
+  RequestBase base = 1;
+  string task_id = 2;
+}
+
+message TaskLifecycleRequest {
+  RequestBase base = 1;
+  string task_id = 2;
+}
+
+message GetSchedulerRequest {
+  RequestBase base = 1;
+  optional string scheduler_id = 2;
+}
+
+message ListSchedulersRequest {
+  RequestBase base = 1;
+  reserved 2;
+  reserved "task_id";
+}
+
+message CreateSchedulerRequest {
+  RequestBase base = 1;
+  SchedulerProtoDTO scheduler = 2;
+}
+
+message CreateSchedulersRequest {
+  RequestBase base = 1;
+  repeated SchedulerProtoDTO schedulers = 2;
+}
+
+message UpdateSchedulerRequest {
+  RequestBase base = 1;
+  string scheduler_id = 2;
+  SchedulerProtoDTO scheduler = 3;
+}
+
+// Records what one firing of a schedule did (mission-autonomy -> connector). Writes only the
+// schedule's last_firing_* / last_execution_id, so it can never undo an edit made at the same time.
+message RecordSchedulerFiringRequest {
+  RequestBase base = 1;
+  string scheduler_id = 2;
+  google.protobuf.Timestamp fired_at = 3;
+  SchedulerFiringOutcome outcome = 4;
+  // Why a SKIPPED or FAILED firing started nothing; empty for STARTED.
+  optional string reason = 5;
+  // The execution a STARTED firing created.
+  optional string execution_id = 6;
+}
+
+message DeleteSchedulerRequest {
+  RequestBase base = 1;
+  string scheduler_id = 2;
+}
+
+message DeleteSchedulersRequest {
+  RequestBase base = 1;
+  repeated string scheduler_ids = 2;
+}
+
+message GetWaypointsByTaskIdRequest {
+  RequestBase base = 1;
+  string task_id = 2;
+}
+
+message WaypointsList {
+  repeated WaypointProtoDTO waypoints = 1;
+}
+
+message MissionResponse {
+  optional bool has_errors = 1;
+  string tid = 2;
+  string mission_id = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  oneof response {
+    google.protobuf.Empty empty = 5;
+    GlobalErrorMessage error = 6;
+    CommandProgress progress = 7;
+    MissionProtoDTO mission = 8;
+  }
+}
+
+message TaskResponse {
+  optional bool has_errors = 1;
+  string tid = 2;
+  string task_id = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  oneof response {
+    google.protobuf.Empty empty = 5;
+    GlobalErrorMessage error = 6;
+    CommandProgress progress = 7;
+    TaskProtoDTO task = 8;
+  }
+}
+
+message SchedulerResponse {
+  optional bool has_errors = 1;
+  string tid = 2;
+  string scheduler_id = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  oneof response {
+    google.protobuf.Empty empty = 5;
+    GlobalErrorMessage error = 6;
+    CommandProgress progress = 7;
+    SchedulerProtoDTO scheduler = 8;
+    SchedulerProtoDTOList schedulers = 9;
+  }
+}
+
+message WaypointsResponse {
+  optional bool has_errors = 1;
+  string tid = 2;
+  string task_id = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  oneof response {
+    google.protobuf.Empty empty = 5;
+    GlobalErrorMessage error = 6;
+    WaypointsList waypoints = 7;
+  }
+}

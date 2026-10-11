@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "base.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.common.proto";
+option java_outer_classname = "CommonDetectionProto";
+option go_package = "gen/common/detection/proto";
+
+// ========== DETECTION MESSAGES ==========
+
+message BoundingBox {
+  float x      = 1;
+  float y      = 2;
+  float width  = 3;
+  float height = 4;
+}
+
+// Where a detected object is, for sensors that locate what they see: a radar, RF direction
+// finding, a camera with a geolocated target. A detection in image space alone leaves it unset
+// and keeps using bounding_box.
+message DetectionPosition {
+  double latitude = 1;
+  double longitude = 2;
+  // Metres, as the sensor reports it.
+  optional double altitude = 3;
+  // Relative to the sensor that saw it.
+  optional double range_m = 4;
+  // Degrees from true north, clockwise.
+  optional double bearing_deg = 5;
+  optional double elevation_deg = 6;
+  // Of the object, when the sensor tracks it.
+  optional double speed_mps = 7;
+  optional double heading_deg = 8;
+}
+
+message DetectionResult {
+  optional string      object_id    = 1;
+  optional string      object_type  = 2;
+  optional float       confidence   = 3;
+  optional BoundingBox bounding_box = 4;
+  optional DetectionPosition position = 5;
+}
+
+message DetectionBatch {
+  RequestBase             base       = 1;
+  repeated DetectionResult detections = 2;
+  optional string         stream_url = 3;
+}
+
+message DetectionControlRequest{
+  enum DetectionControlCommand{
+    REMOTE_CONTROL_COMMAND_DETECTION_START = 0;
+    REMOTE_CONTROL_COMMAND_DETECTION_STOP = 1;
+  }
+  DetectionControlCommand command = 1;
+  optional string asset_sn = 2;
+  optional string sub_asset_sn = 3;
+  optional string task_id = 4;
+  optional string stream_url = 5;
+  optional bool gimbal_tracking_enabled = 6;
+}
+
+message DetectionStreamRequest {
+  RequestBase base = 1;
+  optional string stream_url = 2;
+}

@@ -1,0 +1,656 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "google/protobuf/struct.proto";
+import "device-control-contracts.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.mission.proto";
+option java_outer_classname = "MissionAutonomyTypesProto";
+option go_package = "gen/missionautonomy/domain/types/proto";
+
+// What the last firing of a schedule did. A firing that found no asset to run on (every online one
+// busy with more important work, none reporting, or no policy that applies) is SKIPPED, not FAILED:
+// the schedule is fine, the moment was not.
+enum SchedulerFiringOutcome{
+  SCHEDULER_FIRING_OUTCOME_UNSPECIFIED = 0;
+  SCHEDULER_FIRING_OUTCOME_STARTED = 1;
+  SCHEDULER_FIRING_OUTCOME_SKIPPED = 2;
+  SCHEDULER_FIRING_OUTCOME_FAILED = 3;
+}
+
+enum SchedulerType{
+  SCHEDULER_TYPE_MISSION = 0;
+  SCHEDULER_TYPE_TASK = 1;
+  SCHEDULER_TYPE_SYSTEM_JOBS = 2;
+  SCHEDULER_TYPE_ORGANIZATION = 3;
+  SCHEDULER_TYPE_DATABASE = 4;
+  SCHEDULER_TYPE_CONNECTORS = 5;
+}
+
+enum GeoAreaType {
+  GEO_AREA_TYPE_UNSPECIFIED = 0;
+  GEO_AREA_TYPE_POLYGON = 1;
+  GEO_AREA_TYPE_CIRCLE = 2;
+  GEO_AREA_TYPE_GEO_JSON = 3;
+  GEO_AREA_TYPE_BOUNDING_BOX = 4;
+}
+
+enum MissionZoneType {
+  MISSION_ZONE_TYPE_UNSPECIFIED = 0;
+  MISSION_ZONE_TYPE_NO_FLY = 1;
+  MISSION_ZONE_TYPE_KEEP_IN = 2;
+  MISSION_ZONE_TYPE_TAKEOFF_LANDING = 3;
+  MISSION_ZONE_TYPE_OBSERVATION = 4;
+  MISSION_ZONE_TYPE_DANGER = 5;
+  MISSION_ZONE_TYPE_PRIVACY = 6;
+  MISSION_ZONE_TYPE_CUSTOM = 99;
+}
+
+enum ZoneEnforcementType {
+  ZONE_ENFORCEMENT_TYPE_UNSPECIFIED = 0;
+  ZONE_ENFORCEMENT_TYPE_ADVISORY = 1;
+  ZONE_ENFORCEMENT_TYPE_REQUIRE_APPROVAL = 2;
+  ZONE_ENFORCEMENT_TYPE_HARD_BLOCK = 3;
+}
+
+enum ExecutionStrategy {
+  EXECUTION_STRATEGY_UNSPECIFIED = 0;
+  EXECUTION_STRATEGY_SEQUENTIAL = 1;
+  EXECUTION_STRATEGY_PARALLEL = 2;
+  EXECUTION_STRATEGY_CONDITIONAL = 3;
+  EXECUTION_STRATEGY_PRIORITY = 4;
+}
+
+enum FailureStrategy {
+  FAILURE_STRATEGY_UNSPECIFIED = 0;
+  reserved 1;
+  FAILURE_STRATEGY_STOP_MISSION = 2;
+  FAILURE_STRATEGY_SKIP_TASK = 3;
+  FAILURE_STRATEGY_RETRY_TASK = 4;
+  FAILURE_STRATEGY_REQUIRE_HUMAN_APPROVAL = 5;
+  FAILURE_STRATEGY_CUSTOM = 99;
+}
+
+enum WorkflowStepType {
+  WORKFLOW_STEP_TYPE_UNSPECIFIED = 0;
+  WORKFLOW_STEP_TYPE_TASK = 1;
+  WORKFLOW_STEP_TYPE_DECISION = 2;
+  WORKFLOW_STEP_TYPE_WAIT = 3;
+  WORKFLOW_STEP_TYPE_NOTIFICATION = 4;
+  WORKFLOW_STEP_TYPE_CUSTOM_COMMAND = 5;
+  WORKFLOW_STEP_TYPE_CUSTOM = 99;
+}
+
+enum WorkflowStepStatus {
+  WORKFLOW_STEP_STATUS_UNSPECIFIED = 0;
+  WORKFLOW_STEP_STATUS_PENDING = 1;
+  WORKFLOW_STEP_STATUS_READY = 2;
+  WORKFLOW_STEP_STATUS_RUNNING = 3;
+  WORKFLOW_STEP_STATUS_BLOCKED = 4;
+  WORKFLOW_STEP_STATUS_COMPLETED = 5;
+  WORKFLOW_STEP_STATUS_SKIPPED = 6;
+  WORKFLOW_STEP_STATUS_ERROR = 7;
+}
+
+enum AutonomyMode {
+  AUTONOMY_MODE_UNSPECIFIED = 0;
+  AUTONOMY_MODE_MANUAL_APPROVAL = 1;
+  AUTONOMY_MODE_SUPERVISED = 2;
+  AUTONOMY_MODE_AUTONOMOUS = 3;
+}
+
+enum DecisionStrategyType {
+  DECISION_STRATEGY_TYPE_UNSPECIFIED = 0;
+  DECISION_STRATEGY_TYPE_RULE_BASED = 1;
+  DECISION_STRATEGY_TYPE_SCORE_BASED = 2;
+  DECISION_STRATEGY_TYPE_POLICY_BASED = 3;
+  DECISION_STRATEGY_TYPE_AI_ASSISTED = 4;
+  DECISION_STRATEGY_TYPE_CUSTOM = 99;
+}
+
+enum DecisionTriggerType {
+  DECISION_TRIGGER_TYPE_UNSPECIFIED = 0;
+  DECISION_TRIGGER_TYPE_DETECTION = 1;
+  DECISION_TRIGGER_TYPE_TELEMETRY = 2;
+  DECISION_TRIGGER_TYPE_TASK_STATE = 3;
+  DECISION_TRIGGER_TYPE_MISSION_STATE = 4;
+  reserved 5;
+  DECISION_TRIGGER_TYPE_SCHEDULE = 6;
+  DECISION_TRIGGER_TYPE_MANUAL = 7;
+  DECISION_TRIGGER_TYPE_EXTERNAL = 99;
+}
+
+enum DecisionActionType {
+  DECISION_ACTION_TYPE_UNSPECIFIED = 0;
+  DECISION_ACTION_TYPE_START_TASK = 1;
+  DECISION_ACTION_TYPE_STOP_TASK = 2;
+  DECISION_ACTION_TYPE_PAUSE_TASK = 3;
+  DECISION_ACTION_TYPE_RESUME_TASK = 4;
+  DECISION_ACTION_TYPE_CREATE_TASK = 5;
+  DECISION_ACTION_TYPE_ASSIGN_ASSET = 6;
+  DECISION_ACTION_TYPE_CHANGE_TASK_CONFIG = 7;
+  DECISION_ACTION_TYPE_CHANGE_MISSION_CONFIG = 8;
+  reserved 9;
+  DECISION_ACTION_TYPE_NOTIFY = 10;
+  DECISION_ACTION_TYPE_CUSTOM_COMMAND = 11;
+  DECISION_ACTION_TYPE_NO_ACTION = 12;
+  DECISION_ACTION_TYPE_CUSTOM = 99;
+}
+
+// Dynamic config envelope used by mission and task templates.
+// `template_config` is the default shape, `overrides` contains user/runtime changes,
+// and `decision_config` contains values consumed or produced by the decision engine.
+message DynamicConfigProto {
+  optional string template_id = 1;
+  optional string template_version = 2;
+  google.protobuf.Struct template_config = 3;
+  google.protobuf.Struct overrides = 4;
+  google.protobuf.Struct decision_config = 5;
+  optional bool decision_engine_enabled = 6;
+}
+
+// Schedulable invocation of a capability discovered through AssetRuntimeSnapshot.
+// Mission Autonomy validates params against the advertised input_schema before execution.
+message DynamicCommandTaskConfigProto {
+  string command_id = 1;
+  CapabilityTarget target = 2;
+  google.protobuf.Struct params = 3;
+  // Schema version observed when the task was planned. If set, execution must reject a
+  // capability with a different version instead of running against a changed contract.
+  optional string expected_schema_version = 4;
+}
+
+message DecisionTriggerProto {
+  DecisionTriggerType type = 1;
+  optional string event_type = 2;
+  google.protobuf.Struct params = 3;
+}
+
+message DecisionConditionProto {
+  string field_path = 1;
+  string operator = 2;
+  google.protobuf.Value value = 3;
+}
+
+message DecisionConstraintProto {
+  string name = 1;
+  google.protobuf.Struct params = 2;
+  optional string violation_action = 3;
+}
+
+message DecisionActionProto {
+  DecisionActionType type = 1;
+  optional string target_ref = 2;
+  google.protobuf.Struct params = 3;
+}
+
+message DecisionRuleProto {
+  string id = 1;
+  string name = 2;
+  bool enabled = 3;
+  int32 priority = 4;
+  repeated DecisionTriggerProto triggers = 5;
+  repeated DecisionConditionProto conditions = 6;
+  repeated DecisionConstraintProto constraints = 7;
+  repeated DecisionActionProto actions = 8;
+}
+
+message AutonomyConfigProto {
+  bool enabled = 1;
+  AutonomyMode mode = 2;
+  DecisionStrategyType strategy_type = 3;
+  DynamicConfigProto dynamic_config = 4;
+  repeated DecisionRuleProto decision_rules = 5;
+  optional string policy_scope = 6;
+  optional string policy_scope_target = 7;
+  optional bool require_human_approval = 8;
+  optional float min_confidence = 9;
+  optional string fallback_action = 10;
+}
+
+enum MissionAutonomyCommand {
+  COMMAND_UNSPECIFIED = 0;
+  CREATE_MISSION = 1;
+  UPDATE_MISSION = 2;
+  DELETE_MISSION = 3;
+  CREATE_TASK = 4;
+  UPDATE_TASK = 5;
+  DELETE_TASK = 6;
+  GET_MISSION_BY_ID = 7;
+  GET_ALL_MISSIONS = 8;
+  GET_TASK_BY_FLIGHT_ID = 9;
+  GET_ALL_TASKS_FOR_MISSION = 10;
+  GET_ALL_TASKS_FOR_ASSET = 11;
+  PREPARE_TASK = 12;
+  START_TASK = 13;
+  CANCEL_TASK = 14;
+  UPLOAD_TASK_TO_STORAGE = 15;
+  MISSION_EVENTS = 16;
+  REGISTER_TASK_ON_ASSET = 17;
+  PAUSE_TASK = 18;
+  RESUME_TASK = 19;
+}
+
+enum VehicleAction{
+  VEHICLE_ACTION_NONE = 0;
+  VEHICLE_ACTION_TAKEOFF = 1;
+  VEHICLE_ACTION_LAND = 2;
+}
+
+enum FlyToWaylineModeProto{
+  FTW_MODE_SAFELY = 0;
+  FTW_MODE_POINT_TO_POINT = 1;
+}
+
+enum WaylineFinishActionProto{
+  WF_ACTION_GO_HOME = 0;
+  WF_ACTION_NO_ACTION = 1;
+  WF_ACTION_AUTO_LANDING = 2;
+  WF_ACTION_GOTO_FIRST_WAYPOINT = 3;
+  WF_ACTION_STOP = 4;
+}
+
+enum ExitWaylineWhenRcLostEnumProto{
+  EWWRL_CONTINUE = 0;
+  EWWRL_EXECUTE_RC_LOST_ACTION = 1;
+}
+
+enum RcLostActionEnumProto{
+  RC_LOST_ACTION_HOVER = 0;
+  RC_LOST_ACTION_LAND = 1;
+  RC_LOST_ACTION_RETURN_HOME = 2;
+}
+
+enum WaylineTypeEnumProto{
+  WT_WAYPOINT = 0;
+  WT_MAPPING_2D = 1;
+  WT_MAPPING_3D = 2;
+  WT_MAPPING_STRIP = 3;
+}
+
+enum WaylineTurnModeProto{
+  WT_MODE_COORDINATE_TURN = 0;
+  WT_MODE_TO_POINT_AND_STOP_WITH_DISCONTINUITY_CURVATURE = 1;
+  WT_MODE_TO_POINT_AND_STOP_WITH_CONTINUITY_CURVATURE = 2;
+  WT_MODE_TO_POINT_AND_PASS_WITH_CONTINUITY_CURVATURE = 3;
+}
+
+enum WaylineGimbalPitchModeProto{
+  WGP_MODE_MANUAL = 0;
+  WGP_MODE_POINT_SETTINGS = 1;
+  WGP_MODE_LOOK_DOWN = 2;
+}
+
+enum RthModeEnumProto{
+  RTH_MODE_OPTIMAL = 0;
+  RTH_MODE_PRESET = 1;
+}
+
+enum OutOfControlActionEnumProto{
+  OOC_RETURN_TO_HOME = 0;
+  OOC_HOVERING = 1;
+  OOC_LANDING = 2;
+}
+
+enum WaylinePrecisionTypeEnumProto{
+  PRECISION_GPS = 0;
+  PRECISION_RTK = 1;
+}
+
+enum FlighttaskBreakReasonEnumProto{
+  BREAK_REASON_NORMAL = 0;
+  BREAK_REASON_NOT_ID = 1;
+  BREAK_REASON_UNCOMMON_ERROR = 2;
+  BREAK_REASON_ERROR_LOADING_FILE = 3;
+  BREAK_REASON_ERROR_BREAKPOINT_FILE = 4;
+  BREAK_REASON_INCORRECT_PARAMETER = 5;
+  BREAK_REASON_PARSING_FILE_TIMEOUT = 6;
+  BREAK_REASON_ALREADY_STARTED = 7;
+  BREAK_REASON_UNABLE_TO_INTERRUPT_WAYLINE = 8;
+  BREAK_REASON_NOT_STARTED = 9;
+  BREAK_REASON_FLIGHT_MISSION_CONFLICT = 10;
+  BREAK_REASON_UNABLE_TO_RESUME_WAYLINE = 11;
+  BREAK_REASON_MAXIMUM_ALTITUDE_LIMIT = 12;
+  BREAK_REASON_MAXIMUM_DISTANCE_LIMIT = 13;
+  BREAK_REASON_TOO_LOW_HEIGHT = 14;
+  BREAK_REASON_OBSTACLE_AVOIDANCE = 15;
+  BREAK_REASON_POOR_RTK = 16;
+  BREAK_REASON_BOUNDARY_OF_RESTRICTED_ZONE = 17;
+  BREAK_REASON_GEO_ALTITUDE_LIMIT = 18;
+  BREAK_REASON_TAKEOFF_REQUEST_FAILED = 19;
+  BREAK_REASON_TAKEOFF_EXECUTION_FAILED = 20;
+  BREAK_REASON_WAYLINE_MISSION_REQUEST_FAILED = 21;
+  BREAK_REASON_RTK_FIXING_REQUEST_FAILED = 22;
+  BREAK_REASON_RTK_FIXING_EXECUTION_FAILED = 23;
+  BREAK_REASON_WEAK_GPS = 24;
+  BREAK_REASON_ERROR_RC_MODE = 25;
+  BREAK_REASON_HOME_POINT_NOT_REFRESHED = 26;
+  BREAK_REASON_LOW_BATTERY = 27;
+  BREAK_REASON_LOW_BATTERY_RTH = 28;
+  BREAK_REASON_RC_DISCONNECTION = 29;
+  BREAK_REASON_ON_THE_GROUND = 30;
+  BREAK_REASON_ABNORMAL_VISUAL_STATUS = 31;
+  BREAK_REASON_INVALID_ALTITUDE = 32;
+  BREAK_REASON_CALCULATION_ERROR = 33;
+  BREAK_REASON_STRONG_WINDS_RTH = 34;
+  BREAK_REASON_USER_EXIT = 35;
+  BREAK_REASON_USER_INTERRUPTION = 36;
+  BREAK_REASON_USER_TRIGGERED_RTH = 37;
+  BREAK_REASON_INCORRECT_START_INFORMATION = 38;
+  BREAK_REASON_UNSUPPORTED_COORDINATE_SYSTEM = 39;
+  BREAK_REASON_UNSUPPORTED_ALTITUDE_MODE = 40;
+  BREAK_REASON_UNSUPPORTED_TRANSITIONAL_WAYLINE_MODE = 41;
+  BREAK_REASON_UNSUPPORTED_YAW_MODE = 42;
+  BREAK_REASON_UNSUPPORTED_YAW_DIRECTION_REVERSAL_MODE = 43;
+  BREAK_REASON_UNSUPPORTED_WAYPOINT_TYPE = 44;
+  BREAK_REASON_INVALID_COORDINATED_TURNING_TYPE = 45;
+  BREAK_REASON_INVALID_GLOBAL_SPEED = 46;
+  BREAK_REASON_WAYPOINT_NUMBER_ABNORMAL = 47;
+  BREAK_REASON_INVALID_LATITUDE_AND_LONGITUDE = 48;
+  BREAK_REASON_ABNORMAL_TURNING_INTERCEPT = 49;
+  BREAK_REASON_INVALID_SEGMENT_MAXIMUM_SPEED = 50;
+  BREAK_REASON_INVALID_TARGET_SPEED = 51;
+  BREAK_REASON_INVALID_YAW_ANGLE = 52;
+  BREAK_REASON_BREAKPOINT_INVALID_MISSION_ID = 53;
+  BREAK_REASON_BREAKPOINT_INVALID_PROGRESS_INFORMATION = 54;
+  BREAK_REASON_BREAKPOINT_ERROR_MISSION_STATE = 55;
+  BREAK_REASON_BREAKPOINT_INVALID_INDEX_INFORMATION = 56;
+  BREAK_REASON_BREAKPOINT_INCORRECT_LATITUDE_AND_LONGITUDE = 57;
+  BREAK_REASON_BREAKPOINT_INVALID_YAW = 58;
+  BREAK_REASON_BREAKPOINT_INCORRECT_FLAG_SETTING = 59;
+  BREAK_REASON_WAYLINE_GENERATION_FAILED = 60;
+  BREAK_REASON_WAYLINE_EXECUTION_FAILED = 61;
+  BREAK_REASON_WAYLINE_OBSTACLE_SENSING = 62;
+  BREAK_REASON_UNRECOGNIZED_ACTION_TYPE = 63;
+  BREAK_REASON_DUPLICATE_ACTION_ID = 64;
+  BREAK_REASON_ACTION_ID_NOT_65535 = 65;
+  BREAK_REASON_INVALID_NUMBER_OF_ACTION_GROUPS = 66;
+  BREAK_REASON_ERROR_EFFECTIVE_RANGE = 67;
+  BREAK_REASON_BREAKPOINT_INVALID_ACTION_INDEX = 68;
+  BREAK_REASON_BREAKPOINT_TRIGGER_RUNNING_ABNORMAL = 69;
+  BREAK_REASON_BREAKPOINT_DUPLICATE_ACTION_GROUP_ID = 70;
+  BREAK_REASON_BREAKPOINT_DUPLICATE_ACTION_GROUP_POSITION = 71;
+  BREAK_REASON_BREAKPOINT_INVALID_ACTION_GROUP_POSITION = 72;
+  BREAK_REASON_BREAKPOINT_INVALID_ACTION_ID = 73;
+  BREAK_REASON_BREAKPOINT_UNABLE_TO_INTERRUPT = 74;
+  BREAK_REASON_INCORRECT_BREAKPOINT_INFORMATION = 75;
+  BREAK_REASON_BREAKPOINT_UNRECOGNIZED_ACTION_TYPE = 76;
+  BREAK_REASON_BREAKPOINT_UNRECOGNIZED_TRIGGER_TYPE = 77;
+  BREAK_REASON_UNKNOWN_ERROR_1 = 78;
+  BREAK_REASON_UNKNOWN_ERROR_2 = 79;
+}
+
+enum TaskGoal{
+  TASK_UNDEFINED = 0;
+  TRACK = 1;
+  FOLLOW = 2;
+  SIMPLE = 3;
+  DETECT = 4;
+}
+
+// Canonical task type enum for mission, command, and SDK DTOs.
+// Values 8+ cover RemoteControl actions and edge-device-initiated tasks.
+// Use TASK_TYPE_EXTERNAL with the external_task_type string field for anything not listed here.
+enum TaskTypeProto {
+  TASK_TYPE_UNSPECIFIED = 0;
+  // Mission-autonomy task types
+  TASK_TYPE_DETECT = 1;
+  TASK_TYPE_AREA_MAPPING = 2;
+  TASK_TYPE_WAYPOINT = 3;
+  TASK_TYPE_POI = 4;
+  TASK_TYPE_FOLLOW = 5;
+  TASK_TYPE_TRACK = 6;
+  TASK_TYPE_COUNTER_DRONE = 7;
+  // RemoteControl / edge-device task types
+  TASK_TYPE_TAKE_OFF = 8;
+  TASK_TYPE_GO_TO = 9;
+  TASK_TYPE_RETURN_TO_HOME = 10;
+  TASK_TYPE_ENTER_MANUAL_CONTROL = 11;
+  TASK_TYPE_EXIT_MANUAL_CONTROL = 12;
+  TASK_TYPE_LOOK_AT = 13;
+  TASK_TYPE_TAKE_PHOTO = 14;
+  TASK_TYPE_OPEN_COVER = 15;
+  TASK_TYPE_CLOSE_COVER = 16;
+  TASK_TYPE_START_CHARGING = 17;
+  TASK_TYPE_STOP_CHARGING = 18;
+  TASK_TYPE_REBOOT_ASSET = 19;
+  TASK_TYPE_BOOT_SUB_ASSET = 20;
+  TASK_TYPE_REMOTE_DEBUG = 21;
+  TASK_TYPE_CHANGE_AC_MODE = 22;
+  TASK_TYPE_CUSTOM_COMMAND = 23;
+  // Catch-all: use together with external_task_type string field
+  TASK_TYPE_EXTERNAL = 99;
+}
+
+enum TaskStatus {
+  TASK_UNKNOWN = 0;
+  TASK_DRAFT = 1;
+  TASK_SCHEDULED = 2;
+  TASK_RUNNING = 3;
+  TASK_ERROR = 4;
+  TASK_COMPLETED = 5;
+  TASK_PREPARED = 6;
+  TASK_PAUSED = 7;
+}
+
+enum MissionType {
+  MISSION_TYPE_UNSPECIFIED = 0;
+
+  // Scanning & Inspection
+  MISSION_TYPE_AREA_SCAN = 1;
+  MISSION_TYPE_POINT_INSPECTION = 2;
+  MISSION_TYPE_ROUTE_INSPECTION = 3;
+
+  // Patrol
+  MISSION_TYPE_PERIMETER_PATROL = 4;
+  MISSION_TYPE_ROUTE_PATROL = 5;
+
+  // Observation & Tracking
+  MISSION_TYPE_LIVE_OBSERVATION = 6;
+  MISSION_TYPE_TARGET_TRACKING = 7;
+  MISSION_TYPE_CROWD_MONITORING = 8;
+
+  // Sensor-based missions
+  MISSION_TYPE_THERMAL_SCAN = 9;
+  MISSION_TYPE_MULTISPECTRAL_SCAN = 10;
+
+  // Mapping
+  MISSION_TYPE_3D_MAPPING = 11;
+  MISSION_TYPE_PHOTOGRAMMETRY = 12;
+
+  // Assessment
+  MISSION_TYPE_DAMAGE_ASSESSMENT = 13;
+  MISSION_TYPE_SITUATIONAL_ASSESSMENT = 14;
+
+  // Search
+  MISSION_TYPE_SEARCH = 15;
+
+  // Logistics
+  MISSION_TYPE_PAYLOAD_DELIVERY = 16;
+
+  // Communication
+  MISSION_TYPE_COMMUNICATION_RELAY = 17;
+
+  // Data & Analysis
+  MISSION_TYPE_DATA_COLLECTION = 18;
+
+  // Security
+  MISSION_TYPE_SECURITY_SWEEP = 19;
+
+  // Hazard detection
+  MISSION_TYPE_HAZARD_DETECTION = 20;
+  MISSION_TYPE_GAS_DETECTION = 21;
+  MISSION_TYPE_RADIATION_DETECTION = 22;
+
+  // Custom fallback
+  MISSION_TYPE_CUSTOM = 99;
+}
+
+enum MissionStatus{
+  MISSION_STATUS_UNKNOWN = 0;
+  MISSION_STATUS_DRAFT = 1;
+  MISSION_STATUS_ACTIVE = 2;
+  MISSION_STATUS_INACTIVE = 3;
+  MISSION_STATUS_ERROR = 4;
+}
+
+message WaypointProtoDTO{
+  double latitude = 1;
+  double longitude = 2;
+  optional float altitude = 3;
+  optional float speed = 4;
+  optional bool fly_trough = 5;
+  optional VehicleAction vehicle_action = 6;
+  optional int32 wp_order = 7;
+  optional int32 gimbal_pitch = 8;
+}
+
+// ========== TASK CONFIG MESSAGES (Type-safe configs matching POJOs) ==========
+
+// Waypoint task configuration - mirrors WaypointTaskConfig.java
+message WaypointTaskConfigProto {
+  string external_task_id = 1;  // vendor-neutral: DJI=flightId, Mavlink=mission_id, ground robots=route_id
+  repeated WaypointProtoDTO waypoints = 2;
+  optional FlyToWaylineModeProto fly_to_wayline_mode = 3;
+  optional WaylineFinishActionProto wayline_finish_action = 4;
+  optional WaylineTypeEnumProto wayline_type = 5;
+  optional WaylineTurnModeProto wayline_turn_mode = 6;
+  optional bool use_straight_line = 7;
+  optional WaylinePrecisionTypeEnumProto wayline_precision_type = 8;
+  optional ExitWaylineWhenRcLostEnumProto exit_wayline_when_rc_lost_enum = 9;
+  optional RcLostActionEnumProto rc_lost_action_enum = 10;
+  optional OutOfControlActionEnumProto out_of_control_action = 11;
+  optional float take_off_security_height = 12;
+  optional int32 rth_altitude = 13;
+  optional RthModeEnumProto rth_mode = 14;
+  optional float rth_speed = 15;
+  optional float global_speed = 16;
+  optional float global_transition_speed = 17;
+  optional float global_height = 18;
+  optional WaylineGimbalPitchModeProto gimbal_pitch_mode = 19;
+  optional int32 global_gimbal_pitch = 20;
+  optional string payload_imaging_type = 21;
+  optional string file_url = 22;
+  optional string file_md5 = 23;
+  optional string flight_area_file_url = 24;
+  optional string flight_area_checksum = 25;
+}
+
+// Detect task configuration - mirrors DetectTaskConfig.java
+message DetectTaskConfigProto {
+  repeated string detection_targets = 1;
+  optional string detection_mode = 2;
+  optional double area_latitude = 3;
+  optional double area_longitude = 4;
+  optional float area_radius = 5;
+  optional float detection_altitude = 6;
+  optional string scan_pattern = 7;
+  optional float scan_speed = 8;
+  optional bool thermal_detection = 9;
+  optional bool visual_detection = 10;
+  optional float min_confidence = 11;
+  optional int32 max_detections = 12;
+  optional bool auto_capture_on_detection = 13;
+  optional bool investigate_detections = 14;
+  optional float investigation_distance = 15;
+  optional int32 investigation_duration = 16;
+  optional int32 gimbal_pitch = 17;
+  optional bool enable_zoom = 18;
+  optional float zoom_level = 19;
+  optional int32 max_duration = 20;
+  optional string on_max_detections_action = 21;
+  optional bool realtime_alerts = 22;
+  optional string ai_model_id = 23;
+  repeated DetectionParameterProto detection_parameters = 24;
+
+  message DetectionParameterProto {
+    string name = 1;
+    string value = 2;
+    optional string description = 3;
+  }
+}
+
+// Area mapping task configuration - mirrors AreaMappingTaskConfig.java
+message AreaMappingTaskConfigProto {
+  repeated AreaVertexProto area_vertices = 1;
+  float survey_altitude = 2;
+  optional string flight_pattern = 3;
+  optional int32 front_overlap = 4;
+  optional int32 side_overlap = 5;
+  optional float speed = 6;
+  optional int32 gimbal_pitch = 7;
+  optional int32 camera_angle = 8;
+  optional bool terrain_following = 9;
+  optional float ground_sampling_distance = 10;
+  optional bool enable3_d_reconstruction = 11;
+
+  message AreaVertexProto {
+    double latitude = 1;
+    double longitude = 2;
+    optional int32 order = 3;
+  }
+}
+
+// POI task configuration - mirrors PoiTaskConfig.java
+message PoiTaskConfigProto {
+  double poi_latitude = 1;
+  double poi_longitude = 2;
+  float poi_altitude = 3;
+  optional float orbit_radius = 4;
+  optional float orbit_speed = 5;
+  optional float flight_altitude = 6;
+  optional int32 number_of_orbits = 7;
+  optional string orbit_direction = 8;
+  optional int32 start_angle = 9;
+  optional int32 end_angle = 10;
+  optional bool capture_enabled = 11;
+  optional int32 capture_interval = 12;
+  optional bool lock_camera_on_poi = 13;
+}
+
+// Follow task configuration - mirrors FollowTaskConfig.java
+message FollowTaskConfigProto {
+  string target_type = 1;
+  optional double initial_latitude = 2;
+  optional double initial_longitude = 3;
+  optional float follow_distance = 4;
+  optional float relative_altitude = 5;
+  optional float max_speed = 6;
+  optional string follow_mode = 7;
+  optional int32 angle_offset = 8;
+  optional bool obstacle_avoidance = 9;
+  optional int32 max_duration = 10;
+  optional float max_distance_from_start = 11;
+  optional string lost_target_action = 12;
+  optional int32 lost_target_timeout = 13;
+  optional bool lock_camera_on_target = 14;
+  optional int32 gimbal_pitch_offset = 15;
+  optional bool auto_capture = 16;
+  optional int32 capture_interval = 17;
+}
+
+// Track task configuration - mirrors TrackTaskConfig.java
+message TrackTaskConfigProto {
+  string target_type = 1;
+  optional double initial_latitude = 2;
+  optional double initial_longitude = 3;
+  optional float target_altitude = 4;
+  optional string tracking_mode = 5;
+  optional float max_movement_radius = 6;
+  optional float tracking_altitude = 7;
+  optional bool gimbal_tracking = 8;
+  optional bool auto_zoom = 9;
+  optional float zoom_level = 10;
+  optional string tracking_sensitivity = 11;
+  optional int32 max_duration = 12;
+  optional string lost_target_action = 13;
+  optional int32 lost_target_timeout = 14;
+  optional string search_pattern = 15;
+  optional int32 search_duration = 16;
+  optional bool continuous_recording = 17;
+  optional bool photo_capture = 18;
+  optional int32 capture_interval = 19;
+  optional float confidence_threshold = 20;
+}
