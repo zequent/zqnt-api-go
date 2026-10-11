@@ -1,0 +1,179 @@
+syntax = "proto3";
+
+// What an asset can do. Every action on an asset is a capability with a dotted command id
+// (`flight.takeoff`, `dock.open_cover`, `stream.start`, `vendor.<vendor>.<name>`) and JSON Schemas
+// for its input and output. There are no per-command RPCs: a new command ships by registering it
+// in an adapter, nothing else in the platform changes. Command ids are data (see
+// v3/COMMAND_CATALOG.md), not proto.
+package zqnt.capability.v3;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/zequent/zqnt-api-go/v3/gen/zqnt/capability/v3;capabilityv3";
+option java_multiple_files = true;
+option java_package = "com.zqnt.protos.capability.v3";
+
+// Which part of an asset provides and executes a capability.
+enum TargetType {
+  TARGET_TYPE_UNSPECIFIED = 0;
+  TARGET_TYPE_ASSET = 1;
+  TARGET_TYPE_SUB_ASSET = 2;
+  TARGET_TYPE_PAYLOAD = 3;
+  TARGET_TYPE_COMPONENT = 4;
+}
+
+message Target {
+  TargetType type = 1;
+  // Stable within the asset. Empty when type is ASSET.
+  string ref = 2;
+}
+
+enum CapabilityState {
+  CAPABILITY_STATE_UNSPECIFIED = 0;
+  CAPABILITY_STATE_AVAILABLE = 1;
+  CAPABILITY_STATE_TEMPORARILY_UNAVAILABLE = 2;
+  CAPABILITY_STATE_UNSUPPORTED = 3;
+  CAPABILITY_STATE_REQUIRES_AUTHORIZATION = 4;
+}
+
+// How much a command changes the world. Drives confirmation, approval, RBAC and agent policy.
+// A command without a rating counts as CRITICAL.
+enum CommandRisk {
+  COMMAND_RISK_UNSPECIFIED = 0;
+  // Reads only (status, photo of the current view).
+  COMMAND_RISK_OBSERVE = 1;
+  // Changes settings, nothing moves (zoom, lens, stream).
+  COMMAND_RISK_ADJUST = 2;
+  // Moves the asset or a part of it (takeoff, go-to, cover).
+  COMMAND_RISK_MOVE = 3;
+  // Irreversible or dangerous (jamming, reboot in flight, landing anywhere).
+  COMMAND_RISK_CRITICAL = 4;
+}
+
+message CommandSafety {
+  CommandRisk risk = 1;
+  bool reversible = 2;
+  // The command that undoes this one, e.g. `dock.close_cover` for `dock.open_cover`.
+  string undo_command_id = 3;
+  // Plain-language conditions, e.g. "aircraft is airborne".
+  repeated string preconditions = 4;
+  // Plain-language effects, e.g. "aircraft climbs to the given altitude".
+  repeated string effects = 5;
+}
+
+message CapabilityErrorSpec {
+  string code = 1;
+  string description = 2;
+}
+
+message CapabilityEventSpec {
+  string name = 1;
+  string description = 2;
+  // JSON Schema of the event payload.
+  google.protobuf.Struct payload_schema = 3;
+}
+
+// When a command is finished, as far as the platform can tell.
+enum CompletionMode {
+  // Not declared: the platform goes by the CommandResult state the adapter answers with.
+  COMPLETION_MODE_UNSPECIFIED = 0;
+  // The reply is the outcome: SUCCEEDED or FAILED, nothing follows (open a cover, set a light).
+  COMPLETION_MODE_ON_REPLY = 1;
+  // The reply only accepts it; the outcome arrives later as a CommandEvent (takeoff, go-to,
+  // return home, a waypoint mission). A node running it waits for that event.
+  COMPLETION_MODE_ASYNCHRONOUS = 2;
+}
+
+message CapabilityRequirements {
+  repeated string asset_types = 1;
+  repeated string payloads = 2;
+  repeated string runtime_features = 3;
+  google.protobuf.Struct properties = 4;
+}
+
+enum CapabilitySource {
+  CAPABILITY_SOURCE_UNSPECIFIED = 0;
+  CAPABILITY_SOURCE_BUILT_IN = 1;
+  CAPABILITY_SOURCE_EDGE_ADAPTER = 2;
+  CAPABILITY_SOURCE_RUNTIME = 3;
+  CAPABILITY_SOURCE_USER = 4;
+  CAPABILITY_SOURCE_APPLICATION = 5;
+  CAPABILITY_SOURCE_INTEGRATION = 6;
+  CAPABILITY_SOURCE_AI_GENERATED = 7;
+}
+
+message Capability {
+  // Dotted id, e.g. `flight.takeoff`.
+  string command_id = 1;
+  string display_name = 2;
+  string description = 3;
+  CapabilityState state = 4;
+  string unavailable_reason = 5;
+  Target target = 6;
+  // JSON Schema of the params of ExecuteCommand.
+  google.protobuf.Struct input_schema = 7;
+  // JSON Schema of the result.
+  google.protobuf.Struct output_schema = 8;
+  // Changes whenever either schema changes incompatibly, so stored Skills can detect drift.
+  string schema_version = 9;
+  CommandSafety safety = 10;
+  repeated CapabilityErrorSpec errors = 11;
+  repeated CapabilityEventSpec events = 12;
+  CapabilityRequirements requirements = 13;
+  // Groups sibling commands into one Skill in the catalog; defaults to the id's first segment.
+  string skill_id = 14;
+  CapabilitySource source = 15;
+  // Human-readable origin, e.g. "DJI Adapter".
+  string provider = 16;
+  // Static limits, e.g. {"altitude": {"max": 120}}.
+  google.protobuf.Struct constraints = 17;
+  map<string, string> metadata = 18;
+  // Kept for one minor version after a replacement exists; the replacement is named here.
+  string deprecated_by = 19;
+  // Whether the reply finishes the command or a later event does. Not the same as `events`: those
+  // describe what a Skill can react to (DJI reports cover motion as an event, yet the reply is the
+  // outcome). The adapter's CommandResult state stays authoritative; this lets an SDK fill a state
+  // the handler left open, and lets the console and the agent know in advance that a command waits.
+  CompletionMode completion = 20;
+  // For ASYNCHRONOUS: the event in `events` that reports the outcome, e.g. `flight.takeoff.completed`.
+  string completion_event = 21;
+}
+
+enum SnapshotState {
+  SNAPSHOT_STATE_UNSPECIFIED = 0;
+  SNAPSHOT_STATE_CURRENT = 1;
+  SNAPSHOT_STATE_STALE = 2;
+  SNAPSHOT_STATE_NO_DATA = 3;
+}
+
+// Everything one asset can do right now.
+message CapabilitySet {
+  string asset_sn = 1;
+  string asset_type = 2;
+  repeated Capability capabilities = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  google.protobuf.Timestamp valid_until = 5;
+  string revision = 6;
+  SnapshotState snapshot_state = 7;
+  // The device-specific values this asset sends in TelemetrySample.details.
+  repeated TelemetryField telemetry_fields = 8;
+}
+
+enum TelemetryValueType {
+  TELEMETRY_VALUE_TYPE_UNSPECIFIED = 0;
+  TELEMETRY_VALUE_TYPE_NUMBER = 1;
+  TELEMETRY_VALUE_TYPE_STRING = 2;
+  TELEMETRY_VALUE_TYPE_BOOLEAN = 3;
+}
+
+message TelemetryField {
+  // Dotted key in TelemetrySample.details, e.g. "dock.cover_state".
+  string key = 1;
+  TelemetryValueType type = 2;
+  // SI or common unit, e.g. "m", "m/s", "%", "°C"; empty for strings and booleans.
+  string unit = 3;
+  string description = 4;
+  // For a string with a fixed set of values, e.g. ["OPEN", "CLOSED", "OPENING", "CLOSING"].
+  repeated string allowed_values = 5;
+}

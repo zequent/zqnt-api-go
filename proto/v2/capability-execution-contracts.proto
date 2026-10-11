@@ -1,0 +1,222 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "base.proto";
+import "capability-execution-dto.proto";
+import "capability-execution-types.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.execution.proto";
+option java_outer_classname = "CapabilityExecutionContractsProto";
+option go_package = "gen/execution/contracts/proto";
+
+message UpsertApplicationRequest {
+  RequestBase base = 1;
+  ApplicationProtoDTO application = 2;
+  optional string expected_revision = 3;
+}
+
+message GetApplicationRequest {
+  RequestBase base = 1;
+  string application_id = 2;
+  optional string version = 3;
+}
+
+message ListApplicationsRequest {
+  RequestBase base = 1;
+  optional ApplicationScopeProtoDTO scope = 2;
+  optional bool enabled_only = 3;
+  optional int32 page_size = 4;
+  optional string page_token = 5;
+}
+
+message DeleteApplicationRequest {
+  RequestBase base = 1;
+  string application_id = 2;
+  optional string version = 3;
+  optional string expected_revision = 4;
+}
+
+message GetApplicationEnvironmentsRequest {
+  RequestBase base = 1;
+  string application_id = 2;
+}
+
+// Repoints the given environment's pointer at `version` — `version` must already exist as a saved
+// ApplicationProtoDTO (promotion never mutates or creates a version, only which one is "current").
+message PromoteApplicationVersionRequest {
+  RequestBase base = 1;
+  string application_id = 2;
+  string version = 3;
+  ApplicationEnvironmentProto environment = 4;
+}
+
+message CreateSkillExecutionRequest {
+  RequestBase base = 1;
+  SkillExecutionSpecProto spec = 2;
+  SkillExecutionOptionsProto options = 3;
+  // Repeated requests with the same asset and key must return the original execution.
+  string idempotency_key = 4;
+  optional string organization_id = 5;
+  optional string location_id = 6;
+  optional string theatre_id = 7;
+}
+
+// Convenience operation: create, plan and optionally start an execution atomically.
+message ExecuteSkillRequest {
+  RequestBase base = 1;
+  SkillExecutionSpecProto spec = 2;
+  SkillExecutionOptionsProto options = 3;
+  string idempotency_key = 4;
+  optional string organization_id = 5;
+  optional string location_id = 6;
+  optional string theatre_id = 7;
+}
+
+message GetSkillExecutionRequest {
+  RequestBase base = 1;
+  string execution_id = 2;
+}
+
+message ListSkillExecutionsRequest {
+  RequestBase base = 1;
+  optional string asset_sn = 2;
+  optional string organization_id = 3;
+  optional SkillExecutionStatusProto status = 4;
+  optional string application_id = 5;
+  optional string skill_id = 6;
+  optional string theatre_id = 9;
+  optional int32 page_size = 7;
+  optional string page_token = 8;
+}
+
+message SkillExecutionLifecycleRequest {
+  RequestBase base = 1;
+  string execution_id = 2;
+  optional string reason = 3;
+  optional string idempotency_key = 4;
+}
+
+// Resumes an EVENT_WAIT or HUMAN_APPROVAL node. event_type is required for
+// event waits; approved is required for human approvals.
+message SignalSkillExecutionRequest {
+  RequestBase base = 1;
+  string execution_id = 2;
+  optional string node_id = 3;
+  optional string event_type = 4;
+  google.protobuf.Struct data = 5;
+  optional bool approved = 6;
+  optional string idempotency_key = 7;
+}
+
+message ResolveExecutionConfigRequest {
+  RequestBase base = 1;
+  ExecutionConfigContextProto context = 2;
+  repeated string keys = 3;
+}
+
+message ResolveExecutionConfigResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    ResolvedExecutionConfigProtoDTO config = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
+
+message ApplicationResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    ApplicationProtoDTO application = 3;
+    GlobalErrorMessage error = 4;
+    google.protobuf.Empty empty = 5;
+  }
+  // Non-fatal validation notices on an otherwise-successful upsert — e.g. nodes not reachable from
+  // the start node. The save still went through; these are surfaced so the editor can show what's
+  // incomplete without blocking a work-in-progress graph from being saved.
+  repeated string warnings = 6;
+}
+
+message ApplicationList {
+  repeated ApplicationProtoDTO applications = 1;
+  optional string next_page_token = 2;
+}
+
+message ApplicationListResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    ApplicationList result = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
+
+message ApplicationEnvironmentList {
+  repeated ApplicationEnvironmentPointerProtoDTO pointers = 1;
+}
+
+message ApplicationEnvironmentsResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    ApplicationEnvironmentList result = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
+
+message SkillExecutionResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    SkillExecutionProtoDTO execution = 3;
+    GlobalErrorMessage error = 4;
+    google.protobuf.Empty empty = 5;
+  }
+}
+
+message SkillExecutionList {
+  repeated SkillExecutionProtoDTO executions = 1;
+  optional string next_page_token = 2;
+}
+
+message SkillExecutionListResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    SkillExecutionList result = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
+
+message SetApplicationPauseRequest {
+  RequestBase base = 1;
+  string application_id = 2;
+  // Blank = the whole Application.
+  optional string skill_id = 3;
+  // True pauses, false resumes.
+  bool paused = 4;
+  optional string reason = 5;
+}
+
+message ListApplicationPausesRequest {
+  RequestBase base = 1;
+  // Blank lists every pause.
+  optional string application_id = 2;
+}
+
+message ApplicationPauseList {
+  repeated ApplicationPauseProtoDTO pauses = 1;
+}
+
+message ApplicationPauseListResponse {
+  bool has_errors = 1;
+  ResponseMeta meta = 2;
+  oneof response {
+    ApplicationPauseList result = 3;
+    GlobalErrorMessage error = 4;
+  }
+}
