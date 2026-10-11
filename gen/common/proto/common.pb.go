@@ -185,6 +185,7 @@ const AssetVendor_ASSET_VENDOR_BETAFLIGHT = proto1.AssetVendor_ASSET_VENDOR_BETA
 const AssetVendor_ASSET_VENDOR_RNS = proto1.AssetVendor_ASSET_VENDOR_RNS
 const AssetVendor_ASSET_VENDOR_ZQNT = proto1.AssetVendor_ASSET_VENDOR_ZQNT
 const AssetVendor_ASSET_VENDOR_SIMULATOR = proto1.AssetVendor_ASSET_VENDOR_SIMULATOR
+const AssetVendor_ASSET_VENDOR_AI = proto1.AssetVendor_ASSET_VENDOR_AI
 
 var AssetVendor_name = proto1.AssetVendor_name
 var AssetVendor_value = proto1.AssetVendor_value
