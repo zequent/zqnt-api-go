@@ -33,7 +33,7 @@ func dock() *livedatapb.Telemetry {
 			SubAssetAtHome: p(true), SubAssetCharging: p(true), SubAssetPercentage: p[float32](87),
 			DebugModeOpen: p(false), HasActiveManualControlSession: p(false),
 			CoverState:     p(assetpb.AssetCoverStateEnum_COVER_STATE_CLOSED),
-			WorkingVoltage: p[int32](24_000), WorkingCurrent: p[int32](1_250), SupplyVoltage: p[int32](230),
+			WorkingVoltage: p[int32](24_000), WorkingCurrent: p[int32](1_250), SupplyVoltage: p[int32](230_400),
 			PositionValid: p(true),
 			NetworkInformation: &livedatapb.AssetTelemetryDetails_AssetNetworkInformation{
 				Type: p(assetpb.NetworkTypeEnum_NETWORK_TYPE_4_G), Rate: p[float32](512.5),
@@ -181,6 +181,27 @@ func TestEveryDetailKeyIsDescribedOnceWithItsType(t *testing.T) {
 	}
 	if !proto.Equal(Field(DockCoverState), cover) || Field("radar.mode") != nil {
 		t.Error("Field looks a key up in the catalog")
+	}
+}
+
+func TestTheSupplyVoltageIsVoltsInV3AndMillivoltsInV2(t *testing.T) {
+	values := ToSample(dock(), "").GetDetails().GetFields()
+	if got := values[DockSupplyVoltage].GetNumberValue(); got != 230.4 {
+		t.Errorf("supply voltage %v V, want 230.4", got)
+	}
+	if got := values[DockWorkingVoltage].GetNumberValue(); got != 24_000 {
+		t.Errorf("working voltage %v mV, want 24000", got)
+	}
+	if Field(DockSupplyVoltage).GetUnit() != "V" || Field(DockWorkingVoltage).GetUnit() != "mV" {
+		t.Errorf("catalog units %q and %q", Field(DockSupplyVoltage).GetUnit(), Field(DockWorkingVoltage).GetUnit())
+	}
+
+	sample := &telemetryv3.TelemetrySample{
+		Asset:   &commonv3.AssetRef{Sn: "DRONE-1"},
+		Details: &structpb.Struct{Fields: map[string]*structpb.Value{DockSupplyVoltage: structpb.NewNumberValue(16.204)}},
+	}
+	if got := ToTelemetry(sample).GetAsset().GetSupplyVoltage(); got != 16_204 {
+		t.Errorf("v2 supply voltage %d mV, want 16204", got)
 	}
 }
 
