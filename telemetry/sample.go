@@ -1,6 +1,7 @@
 // Package telemetry maps v2 Telemetry and v3 TelemetrySample both ways. The fields every asset
 // shares are typed on the sample; every other v2 field is a details entry under one of the keys
-// below, enum values as their v2 name without the enum's prefix. Fields describes those keys for
+// below, enum values as their v2 name without the enum's prefix, numbers in the key's catalog unit
+// (dock.supply_voltage is volts, its v2 field millivolts). Fields describes those keys for
 // CapabilitySet.telemetry_fields.
 //
 // Toward v2 a sample is a dock's (asset) or an aircraft's (sub_asset) by the keys it carries; keys
@@ -112,6 +113,7 @@ type detail struct {
 	source      source
 	unit        string
 	description string
+	v2PerUnit   float64
 }
 
 var details = []detail{
@@ -126,7 +128,7 @@ var details = []detail{
 	newDetail(DockPositionValid, "asset.position_valid", "", "Whether the dock's position is calibrated"),
 	newDetail(DockWorkingVoltage, "asset.working_voltage", "mV", "Working voltage"),
 	newDetail(DockWorkingCurrent, "asset.working_current", "mA", "Working current"),
-	newDetail(DockSupplyVoltage, "asset.supply_voltage", "V", "Supply voltage"),
+	scaledDetail(DockSupplyVoltage, "asset.supply_voltage", "V", "Supply voltage", 1000),
 	newDetail(DockAirConditionerState, "asset.air_conditioner.state", "", "Air conditioner state"),
 	newDetail(DockAirConditionerSwitchTime, "asset.air_conditioner.switch_time", "s",
 		"Time until the air conditioner may switch mode again"),
@@ -256,7 +258,7 @@ func ToSample(t *livedatapb.Telemetry, fallbackSN string) *telemetryv3.Telemetry
 	values := map[string]*structpb.Value{}
 	for _, d := range details {
 		if v := read(t.ProtoReflect(), d.path); v != nil {
-			values[d.key] = v
+			values[d.key] = scale(v, d.v2PerUnit, 1)
 		}
 	}
 	if len(values) > 0 {
@@ -304,7 +306,7 @@ func ToTelemetry(sample *telemetryv3.TelemetrySample) *livedatapb.Telemetry {
 	src := sourceOf(sample, values)
 	for _, d := range details {
 		if v, ok := values[d.key]; ok && (d.source == sourceNone || d.source == src) {
-			write(t.ProtoReflect(), d.path, v)
+			write(t.ProtoReflect(), d.path, scale(v, 1, d.v2PerUnit))
 		}
 	}
 	switch src {
@@ -358,6 +360,14 @@ func carries(values map[string]*structpb.Value, src source) bool {
 		}
 	}
 	return false
+}
+
+func scale(v *structpb.Value, divisor, factor float64) *structpb.Value {
+	n, ok := v.GetKind().(*structpb.Value_NumberValue)
+	if divisor == factor || !ok {
+		return v
+	}
+	return structpb.NewNumberValue(n.NumberValue * factor / divisor)
 }
 
 func read(msg protoreflect.Message, path []protoreflect.FieldDescriptor) *structpb.Value {
@@ -584,6 +594,10 @@ func describe(d detail) *capabilityv3.TelemetryField {
 }
 
 func newDetail(key, v2Path, unit, description string) detail {
+	return scaledDetail(key, v2Path, unit, description, 1)
+}
+
+func scaledDetail(key, v2Path, unit, description string, v2PerUnit float64) detail {
 	var path []protoreflect.FieldDescriptor
 	msg := (&livedatapb.Telemetry{}).ProtoReflect().Descriptor()
 	for _, name := range strings.Split(v2Path, ".") {
@@ -604,5 +618,5 @@ func newDetail(key, v2Path, unit, description string) detail {
 	case "sub_asset":
 		src = sourceSubAsset
 	}
-	return detail{key: key, path: path, source: src, unit: unit, description: description}
+	return detail{key: key, path: path, source: src, unit: unit, description: description, v2PerUnit: v2PerUnit}
 }
