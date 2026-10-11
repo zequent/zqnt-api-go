@@ -625,21 +625,28 @@ const (
 	// Hub did exactly that, in both directions. It also states plainly, everywhere an asset is
 	// listed, that the thing is not real.
 	AssetVendor_ASSET_VENDOR_SIMULATOR AssetVendor = 9
+	// The AI detection adapter, which analyses the live streams of other assets.
+	//
+	// Its own slot rather than sharing RTMP_RTSP: the endpoint is keyed by vendor alone, so the AI
+	// adapter claiming RTMP_RTSP would receive the commands of every real RTMP/RTSP camera, and a
+	// real RTMP/RTSP adapter would take over the AI adapter's registration.
+	AssetVendor_ASSET_VENDOR_AI AssetVendor = 10
 )
 
 // Enum value maps for AssetVendor.
 var (
 	AssetVendor_name = map[int32]string{
-		0: "ASSET_VENDOR_DJI",
-		1: "ASSET_VENDOR_AUTEL",
-		2: "ASSET_VENDOR_ROS",
-		3: "ASSET_VENDOR_MAVLINK",
-		4: "ASSET_VENDOR_RTMP_RTSP",
-		5: "ASSET_VENDOR_SAPIENT",
-		6: "ASSET_VENDOR_BETAFLIGHT",
-		7: "ASSET_VENDOR_RNS",
-		8: "ASSET_VENDOR_ZQNT",
-		9: "ASSET_VENDOR_SIMULATOR",
+		0:  "ASSET_VENDOR_DJI",
+		1:  "ASSET_VENDOR_AUTEL",
+		2:  "ASSET_VENDOR_ROS",
+		3:  "ASSET_VENDOR_MAVLINK",
+		4:  "ASSET_VENDOR_RTMP_RTSP",
+		5:  "ASSET_VENDOR_SAPIENT",
+		6:  "ASSET_VENDOR_BETAFLIGHT",
+		7:  "ASSET_VENDOR_RNS",
+		8:  "ASSET_VENDOR_ZQNT",
+		9:  "ASSET_VENDOR_SIMULATOR",
+		10: "ASSET_VENDOR_AI",
 	}
 	AssetVendor_value = map[string]int32{
 		"ASSET_VENDOR_DJI":        0,
@@ -652,6 +659,7 @@ var (
 		"ASSET_VENDOR_RNS":        7,
 		"ASSET_VENDOR_ZQNT":       8,
 		"ASSET_VENDOR_SIMULATOR":  9,
+		"ASSET_VENDOR_AI":         10,
 	}
 )
 
@@ -1757,7 +1765,7 @@ const file_asset_proto_rawDesc = "" +
 	"\x11ASSET_TYPE_JAMMER\x10\x06\x12\x1b\n" +
 	"\x17ASSET_TYPE_CYBER_ATTACK\x10\a\x12\x16\n" +
 	"\x12ASSET_TYPE_SAPIENT\x10\b\x12\x12\n" +
-	"\x0eASSET_TYPE_RNS\x10\t*\x87\x02\n" +
+	"\x0eASSET_TYPE_RNS\x10\t*\x9c\x02\n" +
 	"\vAssetVendor\x12\x14\n" +
 	"\x10ASSET_VENDOR_DJI\x10\x00\x12\x16\n" +
 	"\x12ASSET_VENDOR_AUTEL\x10\x01\x12\x14\n" +
@@ -1768,7 +1776,9 @@ const file_asset_proto_rawDesc = "" +
 	"\x17ASSET_VENDOR_BETAFLIGHT\x10\x06\x12\x14\n" +
 	"\x10ASSET_VENDOR_RNS\x10\a\x12\x15\n" +
 	"\x11ASSET_VENDOR_ZQNT\x10\b\x12\x1a\n" +
-	"\x16ASSET_VENDOR_SIMULATOR\x10\t*0\n" +
+	"\x16ASSET_VENDOR_SIMULATOR\x10\t\x12\x13\n" +
+	"\x0fASSET_VENDOR_AI\x10\n" +
+	"*0\n" +
 	"\x0fAssetConnection\x12\b\n" +
 	"\x04MQTT\x10\x00\x12\a\n" +
 	"\x03TCP\x10\x01\x12\n" +

@@ -133,6 +133,12 @@ enum AssetVendor{
   // Hub did exactly that, in both directions. It also states plainly, everywhere an asset is
   // listed, that the thing is not real.
   ASSET_VENDOR_SIMULATOR = 9;
+  // The AI detection adapter, which analyses the live streams of other assets.
+  //
+  // Its own slot rather than sharing RTMP_RTSP: the endpoint is keyed by vendor alone, so the AI
+  // adapter claiming RTMP_RTSP would receive the commands of every real RTMP/RTSP camera, and a
+  // real RTMP/RTSP adapter would take over the AI adapter's registration.
+  ASSET_VENDOR_AI = 10;
 }
 
 enum AssetConnection{
