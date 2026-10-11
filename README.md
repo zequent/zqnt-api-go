@@ -37,3 +37,7 @@ regenerates `gen/` on every PR and fails if it differs.
 
 Releases are `vX.Y.Z` tags. Every PR build is also tagged `pr-<n>-<sha>` and can be fetched with
 `go get github.com/zequent/zqnt-api-go@pr-<n>-<sha>` for review.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE); see [NOTICE](NOTICE).
