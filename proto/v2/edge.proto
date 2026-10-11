@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.edge.sdk.proto";
+option java_outer_classname = "EdgeSdkProto";
+option go_package = "gen/edge/sdk/proto";
+
+// EdgeAdapterService is the device-facing command API implemented by each Edge SDK.
+// It intentionally uses shared command messages from common.proto so client-facing
+// and device-facing SDKs do not drift into duplicate contracts.
+// Each adapter also pushes scheduled ReportAssetRuntime requests to RemoteControlService.
+service EdgeAdapterService {
+  // Current self-describing command contract; also used to build runtime snapshots.
+  rpc GetCapabilities(AssetCapabilitiesRequest) returns (AssetCapabilitiesResponse);
+
+  // Flight Control
+  rpc TakeOff(CoordinateCommandRequest) returns (CommandResponse);
+  rpc GoTo(CoordinateCommandRequest) returns (CommandResponse);
+  rpc ReturnToHome(ReturnToHomeCommandRequest) returns (CommandResponse);
+
+  // Manual Control
+  rpc EnterManualControl(ManualControlCommandRequest) returns (CommandResponse);
+  rpc ExitManualControl(ManualControlCommandRequest) returns (CommandResponse);
+  rpc ManualControlInput(stream ManualControlInputCommandRequest) returns (CommandResponse);
+
+  // Gimbal, Camera & Detection
+  rpc LookAt(LookAtCommandRequest) returns (CommandResponse);
+  rpc EnableGimbalTracking(ToggleCommandRequest) returns (CommandResponse);
+  rpc GetDetections(DetectionStreamRequest) returns (stream DetectionBatch);
+
+  // Dock commands
+  rpc OpenCover(EmptyCommandRequest) returns (CommandResponse);
+  rpc CloseCover(CloseCoverCommandRequest) returns (CommandResponse);
+  rpc StartCharging(EmptyCommandRequest) returns (CommandResponse);
+  rpc StopCharging(EmptyCommandRequest) returns (CommandResponse);
+
+  // Asset Management
+  rpc RebootAsset(EmptyCommandRequest) returns (CommandResponse);
+  rpc BootSubAsset(ToggleCommandRequest) returns (CommandResponse);
+  rpc RegisterAsset(RegisterAssetCommandRequest) returns (CommandResponse);
+  rpc DeregisterAsset(EmptyCommandRequest) returns (CommandResponse);
+
+  // Debug & Maintenance
+  rpc SetRemoteDebugMode(ToggleCommandRequest) returns (CommandResponse);
+  rpc ChangeAcMode(ChangeAcModeCommandRequest) returns (CommandResponse);
+
+  // Live Stream & Camera Capture
+  rpc StartLiveStream(LiveStreamStartCommandRequest) returns (CommandResponse);
+  rpc StopLiveStream(LiveStreamStopCommandRequest) returns (CommandResponse);
+  rpc ChangeLens(ChangeCameraLensCommandRequest) returns (CommandResponse);
+  rpc ChangeZoom(ChangeCameraZoomCommandRequest) returns (CommandResponse);
+  rpc CapturePhoto(EmptyCommandRequest) returns (CommandResponse);
+  rpc StartRecording(EmptyCommandRequest) returns (CommandResponse);
+  rpc StopRecording(EmptyCommandRequest) returns (CommandResponse);
+  rpc LiveStreamSplitScreen(ToggleCommandRequest) returns (CommandResponse);
+
+  // Task Lifecycle
+  rpc PrepareTask(TaskCommandRequest) returns (CommandResponse);
+  rpc StartTask(TaskCommandRequest) returns (CommandResponse);
+  rpc StopTask(TaskCommandRequest) returns (CommandResponse);
+  rpc PauseTask(TaskCommandRequest) returns (CommandResponse);
+  rpc ResumeTask(TaskCommandRequest) returns (CommandResponse);
+
+  // Custom / Integrator-defined commands
+  rpc SendCustomCommand(CustomCommandRequest) returns (CustomCommandResponse);
+}
