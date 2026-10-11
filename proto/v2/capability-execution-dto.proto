@@ -1,0 +1,396 @@
+syntax = "proto3";
+
+package zqnt;
+
+import "base.proto";
+import "capability-execution-types.proto";
+import "device-control-contracts.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "mission-autonomy-dto.proto";
+
+option java_multiple_files = true;
+option java_package = "com.zqnt.utils.execution.proto";
+option java_outer_classname = "CapabilityExecutionDtoProto";
+option go_package = "gen/execution/dto/proto";
+
+message ApplicationScopeProtoDTO {
+  ApplicationScopeTypeProto type = 1;
+  optional string target_id = 2;
+}
+
+message ScopedExecutionConfigProtoDTO {
+  string id = 1;
+  string key = 2;
+  google.protobuf.Value value = 3;
+  ExecutionConfigScopeTypeProto scope = 4;
+  // Empty for GLOBAL; otherwise identifies a skill, organization, theatre, or asset.
+  optional string scope_target = 5;
+  optional bool active = 6;
+  optional string revision = 7;
+  optional string description = 8;
+}
+
+message ExecutionConfigContextProto {
+  optional string skill_id = 1;
+  optional string organization_id = 2;
+  optional string theatre_id = 3;
+  optional string asset_id = 4;
+  optional string asset_sn = 5;
+  // Highest-priority values supplied specifically for this execution.
+  google.protobuf.Struct execution_overrides = 6;
+}
+
+message ResolvedExecutionConfigProtoDTO {
+  google.protobuf.Struct values = 1;
+  // Config key -> source description, e.g. "ASSET:asset-123" or "GLOBAL".
+  map<string, string> sources = 2;
+  google.protobuf.Timestamp resolved_at = 3;
+}
+
+message ExecutionComparisonProto {
+  string field_path = 1;
+  ExecutionConditionOperatorProto operator = 2;
+  google.protobuf.Value expected_value = 3;
+}
+
+message ExecutionConditionGroupProto {
+  ExecutionConditionGroupOperatorProto operator = 1;
+  repeated ExecutionConditionProto conditions = 2;
+  optional bool negate = 3;
+}
+
+message ExecutionConditionProto {
+  oneof expression {
+    ExecutionComparisonProto comparison = 1;
+    ExecutionConditionGroupProto group = 2;
+    bool constant = 3;
+  }
+  // Defines behavior when a referenced value is unavailable.
+  optional bool result_when_missing = 4;
+}
+
+message CommandNodeConfigProto {
+  string command_id = 1;
+  repeated string required_parameters = 2;
+  google.protobuf.Struct parameter_defaults = 3;
+  google.protobuf.Struct parameter_mapping = 4;
+  // The Skill Registry schema_version (see connector.proto SkillContractProtoDTO) this node was
+  // validated against at publish time — stamped automatically by DataFlowValidator on first
+  // successful publish and never overwritten afterward, so a published Application always records
+  // the exact command contract version it depends on (reproducibility; see
+  // ApplicationDependencyService, admin-console, for drift detection against this pin).
+  optional string command_schema_version = 5;
+}
+
+message SkillNodeConfigProto {
+  string skill_id = 1;
+  google.protobuf.Struct parameter_mapping = 2;
+  // Which version of the composed Skill this node runs. A Skill's versions are the versions of the
+  // Application authoring it (the one whose skills[0] is skill_id). follow_latest = true: the
+  // platform keeps the composed copy at the Skill's newest version, also when the Skill is saved
+  // later (the composing Application is refreshed server-side, see connector's
+  // SkillUpdatePropagation). follow_latest = false: pinned to skill_version; a newer version is only
+  // reported ("update available"), never applied. skill_version is always the version the copy in
+  // this Application currently is (for follow_latest too). Both unset (saved before this existed):
+  // treated as pinned to the version the copy was taken from, and stamped so on the next save.
+  // All SKILL nodes of one Application that compose the same Skill must agree -- one Application
+  // carries one copy of a Skill.
+  optional string skill_version = 3;
+  optional bool follow_latest = 4;
+}
+
+message GatewayNodeConfigProto {
+  ExecutionJoinModeProto join_mode = 1;
+  // Only ever set on the synthetic JOIN_GATEWAY a SKILL node is rewritten into at expansion time
+  // (SkillGraphExpander) — the referenced Skill's own output_mapping, with node-id components
+  // rewritten to the expanded graph's prefixed ids. Authored on SkillProtoDTO, not here directly.
+  google.protobuf.Struct output_mapping = 2;
+}
+
+message WaitNodeConfigProto {
+  oneof wait {
+    int64 duration_seconds = 1;
+    google.protobuf.Timestamp until = 2;
+  }
+}
+
+message EventWaitNodeConfigProto {
+  string event_type = 1;
+  optional ExecutionConditionProto filter = 2;
+  optional int32 timeout_seconds = 3;
+}
+
+message HumanApprovalNodeConfigProto {
+  string approval_type = 1;
+  optional string approval_group = 2;
+  optional int32 timeout_seconds = 3;
+}
+
+// The AI node's configuration (zqnt-core #164), the engine's copy of zqnt.application.v3.AiNodeConfig:
+// same field numbers and types, so a v3 Application converts by bytes and survives the engine's JSON
+// working copy in Redis (which drops unknown fields).
+message AiNodeConfigProto {
+  string prompt = 1;
+  string prompt_version = 2;
+  string model_id = 3;
+  google.protobuf.Struct output_schema = 4;
+  repeated string allowed_tool_categories = 5;
+  int64 max_cost_micro_eur = 6;
+}
+
+message ExecutionNodeProtoDTO {
+  string id = 1;
+  string name = 2;
+  ExecutionNodeTypeProto type = 3;
+  oneof config {
+    CommandNodeConfigProto command = 4;
+    SkillNodeConfigProto skill = 5;
+    ExecutionConditionProto condition = 6;
+    GatewayNodeConfigProto gateway = 7;
+    WaitNodeConfigProto wait = 8;
+    EventWaitNodeConfigProto event_wait = 9;
+    HumanApprovalNodeConfigProto human_approval = 10;
+    // zqnt-core #164; field numbers and types identical to zqnt.application.v3.AiNodeConfig.
+    AiNodeConfigProto ai = 15;
+  }
+  optional int32 timeout_seconds = 11;
+  optional ExecutionFailureStrategyProto failure_strategy = 12;
+  optional RetryPolicyProtoDTO retry_policy = 13;
+  optional bool enabled = 14;
+}
+
+message ExecutionEdgeProtoDTO {
+  string id = 1;
+  string source_node_id = 2;
+  string target_node_id = 3;
+  ExecutionEdgeTypeProto type = 4;
+  optional ExecutionConditionProto condition = 5;
+  optional int32 priority = 6;
+  optional string label = 7;
+}
+
+message GraphNodeLayoutProtoDTO {
+  string node_id = 1;
+  double x = 2;
+  double y = 3;
+  optional string color = 4;
+  optional bool collapsed = 5;
+  google.protobuf.Struct editor_metadata = 6;
+}
+
+message ExecutionGraphLayoutProtoDTO {
+  repeated GraphNodeLayoutProtoDTO nodes = 1;
+  optional double zoom = 2;
+  optional double viewport_x = 3;
+  optional double viewport_y = 4;
+}
+
+message ExecutionGraphProtoDTO {
+  string start_node_id = 1;
+  repeated ExecutionNodeProtoDTO nodes = 2;
+  repeated ExecutionEdgeProtoDTO edges = 3;
+  // Editor-only data. The execution engine must ignore this field.
+  optional ExecutionGraphLayoutProtoDTO layout = 4;
+}
+
+message SkillProtoDTO {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  ExecutionGraphProtoDTO graph = 4;
+  google.protobuf.Struct input_schema = 5;
+  google.protobuf.Struct output_schema = 6;
+  google.protobuf.Struct default_config = 7;
+  optional bool enabled = 8;
+  // Device capabilities (see Capability.command_id in device-control-contracts.proto) this skill
+  // requires the target asset to advertise — unrelated to the Application/Skill authoring model.
+  repeated string required_asset_capabilities = 9;
+  // Defines this Skill's public output contract: field -> a "$.nodes.<id>.output.<field>" or
+  // "$.input.<field>" expression (same syntax/resolver as CommandNodeConfigProto.parameter_mapping),
+  // referencing this Skill's OWN graph nodes. When this Skill is referenced by a SKILL node in
+  // another graph (an Application composing it), SkillGraphExpander rewrites these expressions'
+  // node-id components to the expanded graph's prefixed ids and attaches the result as
+  // GatewayNodeConfigProto.output_mapping on the synthetic join point the SKILL node becomes — so a
+  // CONDITION elsewhere in that Application can branch on "$.nodes.<skillNodeId>.output.<field>".
+  google.protobuf.Struct output_mapping = 10;
+  // Only on a composed copy (a Skill carried by an Application that composes it, not authored in
+  // it): the Application authoring this Skill and which of its versions the copy was taken from.
+  // Server-owned: stamped on save; unset on an Application's own Skills.
+  optional string source_application_id = 11;
+  optional string source_version = 12;
+}
+
+// One entry of a version's changelog: what changed in it, when and by whom.
+message ApplicationChangeProtoDTO {
+  google.protobuf.Timestamp at = 1;
+  // Who saved it: the user's subject, or blank for a change the platform made itself.
+  optional string author = 2;
+  string note = 3;
+  // True for an entry the platform wrote (e.g. a composed Skill updated because it follows the
+  // Skill's latest version), false for a note an author entered on save.
+  bool automatic = 4;
+}
+
+message ApplicationProtoDTO {
+  string id = 1;
+  string version = 2;
+  string name = 3;
+  optional string description = 4;
+  repeated SkillProtoDTO skills = 5;
+  repeated ApplicationScopeProtoDTO scopes = 6;
+  google.protobuf.Struct default_config = 7;
+  optional bool enabled = 8;
+  optional string revision = 9;
+  optional google.protobuf.Timestamp created_at = 10;
+  optional google.protobuf.Timestamp modified_at = 11;
+  // The organization this Application belongs to, as stored with it (null = system-wide). Output
+  // only: connector fills it on every read and ignores it on save -- an Application always belongs
+  // to the organization that saves it, and it is not part of the versioned definition or an export.
+  optional string organization_id = 12;
+  // What changed in this version, oldest first. Server-owned: connector keeps the stored entries of
+  // the version being overwritten and appends change_note (plus its own automatic entries); a NEW
+  // version starts from what the request carries (an import keeps its history, an editor sends none).
+  repeated ApplicationChangeProtoDTO changelog = 13;
+  // Input only: the author's note for this save ("what changed"), appended to changelog by
+  // connector and never stored on its own. Blank = no entry.
+  optional string change_note = 14;
+}
+
+// A pause switches an Application -- or one Skill of it -- off at runtime: nothing starts it any
+// more, not a trigger, a scheduler, a webhook, the Integration Hub or a manual run. Executions
+// already running finish normally. Kept apart from ApplicationProtoDTO on purpose: an Application
+// is a versioned deliverable, and whether it may run right now is operational state that must not
+// change its revision, travel with an export, or differ between two versions of the same thing.
+message ApplicationPauseProtoDTO {
+  string application_id = 1;
+  // Blank pauses the whole Application; otherwise just this Skill of it.
+  optional string skill_id = 2;
+  optional string paused_by = 3;
+  optional google.protobuf.Timestamp paused_at = 4;
+  optional string reason = 5;
+  // The organization whose Application this is -- Application ids are chosen per organization, so
+  // two tenants can pause two unrelated Applications that happen to share an id.
+  optional string organization_id = 6;
+}
+
+// Versions are immutable once saved (ApplicationProtoDTO.version + .revision); promotion never
+// mutates one. Instead, exactly one pointer per (application_id, environment) says which version is
+// "the" staging or production build right now — what an execution or the catalog resolves to when
+// no explicit version is given. Promoting is just repointing this at a different existing version.
+message ApplicationEnvironmentPointerProtoDTO {
+  string application_id = 1;
+  ApplicationEnvironmentProto environment = 2;
+  string version = 3;
+  optional google.protobuf.Timestamp updated_at = 4;
+  optional string updated_by = 5;
+}
+
+message SimpleExecutionSpecProto {
+  string command_id = 1;
+  CapabilityTarget target = 2;
+  google.protobuf.Struct parameters = 3;
+  optional string expected_schema_version = 4;
+}
+
+message ApplicationExecutionSpecProto {
+  string application_id = 1;
+  string skill_id = 2;
+  optional string application_version = 3;
+  google.protobuf.Struct parameters = 4;
+}
+
+message SkillExecutionSpecProto {
+  oneof execution {
+    SimpleExecutionSpecProto simple = 1;
+    ApplicationExecutionSpecProto application = 2;
+  }
+}
+
+message SkillExecutionOptionsProto {
+  optional bool dry_run = 1;
+  optional bool validate_only = 2;
+  optional bool auto_start = 3;
+  // 0..100. Decides whether this execution may take over an asset another execution is using: only
+  // when strictly higher than that execution's. Unset = 0, a manual run (the console, the API) --
+  // the least important work there is. Schedulers set 50 (routine), triggers their own (default 75).
+  optional int32 priority = 4;
+  optional int32 timeout_seconds = 5;
+  optional ExecutionFailureStrategyProto failure_strategy = 6;
+  optional RetryPolicyProtoDTO retry_policy = 7;
+  optional string preflight_profile = 8;
+  optional string nfz_policy_profile = 9;
+  google.protobuf.Struct config_overrides = 10;
+  // A direct operator command (spec.simple, no priority) may fly through a HARD_BLOCK or
+  // REQUIRE_APPROVAL no-fly zone when this is set. Honoured only for an organization admin or a
+  // system admin, and recorded in the execution's safety audit; refused for anybody else.
+  optional bool no_fly_zone_override = 11;
+}
+
+message ExecutionNodeStateProtoDTO {
+  string id = 1;
+  string node_id = 2;
+  optional string command_id = 3;
+  CapabilityTarget target = 4;
+  google.protobuf.Struct parameters = 5;
+  ExecutionNodeStatusProto status = 6;
+  optional int32 attempt = 7;
+  optional float progress = 8;
+  optional string external_execution_id = 9;
+  optional google.protobuf.Timestamp started_at = 10;
+  optional google.protobuf.Timestamp completed_at = 11;
+  optional GlobalErrorMessage error = 12;
+  google.protobuf.Struct output = 13;
+  // The asset this node was actually sent to, when it is not the execution's own -- chosen
+  // automatically for a command the execution's asset cannot perform (e.g. a jammer.* node inside a
+  // drone's execution: the jammer that best covers the target). Every later node of the same
+  // command family in this execution goes to the same asset, its events complete the node, and a
+  // cancel reaches it. Unset means the execution's asset.
+  optional string dispatched_asset_sn = 14;
+  // Why that asset, in words, for the execution view, e.g. "SIM-JAMMER-01: target 1.2 km away,
+  // within its 1.5 km range".
+  optional string dispatch_reason = 15;
+  // What the platform wants a person to know about how this node ran, without it having failed --
+  // e.g. "crosses advisory no-fly zone 'School' (flown as commanded)".
+  repeated string warnings = 16;
+}
+
+message SkillExecutionProtoDTO {
+  string id = 1;
+  string asset_sn = 2;
+  optional string asset_id = 3;
+  optional string organization_id = 4;
+  optional string location_id = 5;
+  optional string theatre_id = 21;
+  SkillExecutionSpecProto spec = 6;
+  SkillExecutionOptionsProto options = 7;
+  SkillExecutionStatusProto status = 8;
+  repeated ExecutionNodeStateProtoDTO node_states = 9;
+  repeated string active_node_ids = 10;
+  optional float progress = 11;
+  optional string idempotency_key = 12;
+  optional string requested_by = 13;
+  optional google.protobuf.Timestamp created_at = 14;
+  optional google.protobuf.Timestamp started_at = 15;
+  optional google.protobuf.Timestamp completed_at = 16;
+  optional google.protobuf.Timestamp modified_at = 17;
+  optional GlobalErrorMessage error = 18;
+  google.protobuf.Struct output = 19;
+  google.protobuf.Struct resolved_config = 20;
+  ExecutionGraphProtoDTO graph_snapshot = 22;
+  optional string application_revision = 23;
+}
+
+message SkillExecutionEventProto {
+  string event_id = 1;
+  string execution_id = 2;
+  string asset_sn = 3;
+  SkillExecutionEventTypeProto type = 4;
+  SkillExecutionStatusProto execution_status = 5;
+  optional string node_id = 6;
+  optional ExecutionNodeStatusProto node_status = 7;
+  optional float progress = 8;
+  google.protobuf.Timestamp occurred_at = 9;
+  optional GlobalErrorMessage error = 10;
+  google.protobuf.Struct data = 11;
+}

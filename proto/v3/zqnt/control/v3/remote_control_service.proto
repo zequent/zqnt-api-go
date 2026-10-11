@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+// The client-facing way to command assets: the console, the client SDKs, the Integration Hub and
+// the AI agent all use this service. It resolves the asset's adapter and forwards the command
+// unchanged. Permissions, approvals and audit apply here, per command and by its risk.
+package zqnt.control.v3;
+
+import "zqnt/capability/v3/capability.proto";
+import "zqnt/capability/v3/command.proto";
+import "zqnt/common/v3/common.proto";
+import "zqnt/edge/v3/edge_adapter_service.proto";
+
+option go_package = "github.com/zequent/zqnt-api-go/v3/gen/zqnt/control/v3;controlv3";
+option java_multiple_files = true;
+option java_package = "com.zqnt.protos.control.v3";
+
+service RemoteControlService {
+  // The latest capability snapshot of an asset, as its adapter last reported it.
+  rpc GetCapabilities(GetCapabilitiesRequest) returns (GetCapabilitiesResponse);
+  rpc ExecuteCommand(ExecuteCommandRequest) returns (ExecuteCommandResponse);
+  rpc CancelCommand(CancelCommandRequest) returns (CancelCommandResponse);
+  // Events of one command run, or of every command on an asset.
+  rpc WatchCommandEvents(WatchCommandEventsRequest) returns (stream WatchCommandEventsResponse);
+  rpc StreamManualControl(stream StreamManualControlRequest) returns (StreamManualControlResponse);
+}
+
+message GetCapabilitiesRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  zqnt.common.v3.AssetRef asset = 2;
+  zqnt.capability.v3.Target target = 3;
+}
+
+message GetCapabilitiesResponse {
+  zqnt.capability.v3.CapabilitySet capabilities = 1;
+}
+
+message ExecuteCommandRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  zqnt.capability.v3.Command command = 2;
+  // A human reason, required for CRITICAL commands and for commands the AI agent issues.
+  string reason = 3;
+  // Fly through no-fly zones instead of around them. Honoured for an organization admin or a
+  // system admin only, by the caller's own credential; anybody else's command is refused.
+  bool no_fly_zone_override = 4;
+}
+
+message ExecuteCommandResponse {
+  zqnt.capability.v3.CommandResult result = 1;
+}
+
+message CancelCommandRequest {
+  zqnt.common.v3.RequestContext context = 1;
+  string command_execution_id = 2;
+  string reason = 3;
+}
+
+message CancelCommandResponse {
+  zqnt.capability.v3.CommandResult result = 1;
+}
+
+message WatchCommandEventsRequest {
+  // One of the two.
+  string command_execution_id = 1;
+  zqnt.common.v3.AssetRef asset = 2;
+}
+
+message WatchCommandEventsResponse {
+  zqnt.capability.v3.CommandEvent event = 1;
+}
+
+message StreamManualControlRequest {
+  zqnt.common.v3.AssetRef asset = 1;
+  zqnt.edge.v3.ManualControlInput input = 2;
+}
+
+message StreamManualControlResponse {
+  int64 accepted_inputs = 1;
+  zqnt.common.v3.Error error = 2;
+}
