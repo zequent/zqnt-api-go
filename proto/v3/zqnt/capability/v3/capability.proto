@@ -158,6 +158,27 @@ message CapabilitySet {
   SnapshotState snapshot_state = 7;
   // The device-specific values this asset sends in TelemetrySample.details.
   repeated TelemetryField telemetry_fields = 8;
+  // Devices mounted on the asset. A full snapshot: a payload missing from the next report is detached.
+  repeated Payload payloads = 9;
+}
+
+// A device mounted on the asset: camera, gimbal, speaker, spotlight, sprayer, sensor.
+message Payload {
+  // Stable within the asset; capabilities with Target PAYLOAD name it in Target.ref.
+  string ref = 1;
+  // "camera", "speaker", "spotlight", "sprayer", "sensor", ... Data, not an enum.
+  string kind = 2;
+  string vendor = 3;
+  string model = 4;
+  string serial_number = 5;
+  // Mount position, e.g. DJI gimbal 0..2.
+  optional int32 slot_index = 6;
+  string firmware_version = 7;
+  // The vendor's id, e.g. DJI "type-subtype-gimbalindex".
+  string external_id = 8;
+  // The asset itself or a sub-asset (Target SUB_ASSET).
+  Target mounted_on = 9;
+  map<string, string> metadata = 10;
 }
 
 enum TelemetryValueType {
