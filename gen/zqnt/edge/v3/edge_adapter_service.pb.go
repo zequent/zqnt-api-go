@@ -660,14 +660,24 @@ func (x *BoundingBox) GetHeight() float32 {
 }
 
 type Detection struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ObjectId      string                 `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
-	ObjectType    string                 `protobuf:"bytes,2,opt,name=object_type,json=objectType,proto3" json:"object_type,omitempty"`
-	Confidence    float32                `protobuf:"fixed32,3,opt,name=confidence,proto3" json:"confidence,omitempty"`
-	BoundingBox   *BoundingBox           `protobuf:"bytes,4,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
-	Position      *v3.GeoPoint           `protobuf:"bytes,5,opt,name=position,proto3" json:"position,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	ObjectId    string                 `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
+	ObjectType  string                 `protobuf:"bytes,2,opt,name=object_type,json=objectType,proto3" json:"object_type,omitempty"`
+	Confidence  float32                `protobuf:"fixed32,3,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	BoundingBox *BoundingBox           `protobuf:"bytes,4,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
+	Position    *v3.GeoPoint           `protobuf:"bytes,5,opt,name=position,proto3" json:"position,omitempty"`
+	// Radar geometry, relative to the sensor that saw the object.
+	RangeMeters *float64 `protobuf:"fixed64,6,opt,name=range_meters,json=rangeMeters,proto3,oneof" json:"range_meters,omitempty"`
+	// Degrees clockwise from true north.
+	BearingDegrees *float64 `protobuf:"fixed64,7,opt,name=bearing_degrees,json=bearingDegrees,proto3,oneof" json:"bearing_degrees,omitempty"`
+	// Degrees above the horizon.
+	ElevationDegrees *float64 `protobuf:"fixed64,8,opt,name=elevation_degrees,json=elevationDegrees,proto3,oneof" json:"elevation_degrees,omitempty"`
+	// m/s, of the object when the sensor tracks it.
+	Speed *float64 `protobuf:"fixed64,9,opt,name=speed,proto3,oneof" json:"speed,omitempty"`
+	// Degrees clockwise from true north, the direction the object moves.
+	HeadingDegrees *float64 `protobuf:"fixed64,10,opt,name=heading_degrees,json=headingDegrees,proto3,oneof" json:"heading_degrees,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Detection) Reset() {
@@ -733,6 +743,41 @@ func (x *Detection) GetPosition() *v3.GeoPoint {
 		return x.Position
 	}
 	return nil
+}
+
+func (x *Detection) GetRangeMeters() float64 {
+	if x != nil && x.RangeMeters != nil {
+		return *x.RangeMeters
+	}
+	return 0
+}
+
+func (x *Detection) GetBearingDegrees() float64 {
+	if x != nil && x.BearingDegrees != nil {
+		return *x.BearingDegrees
+	}
+	return 0
+}
+
+func (x *Detection) GetElevationDegrees() float64 {
+	if x != nil && x.ElevationDegrees != nil {
+		return *x.ElevationDegrees
+	}
+	return 0
+}
+
+func (x *Detection) GetSpeed() float64 {
+	if x != nil && x.Speed != nil {
+		return *x.Speed
+	}
+	return 0
+}
+
+func (x *Detection) GetHeadingDegrees() float64 {
+	if x != nil && x.HeadingDegrees != nil {
+		return *x.HeadingDegrees
+	}
+	return 0
 }
 
 type StreamDetectionsResponse struct {
@@ -1016,7 +1061,7 @@ const file_zqnt_edge_v3_edge_adapter_service_proto_rawDesc = "" +
 	"\x01x\x18\x01 \x01(\x02R\x01x\x12\f\n" +
 	"\x01y\x18\x02 \x01(\x02R\x01y\x12\x14\n" +
 	"\x05width\x18\x03 \x01(\x02R\x05width\x12\x16\n" +
-	"\x06height\x18\x04 \x01(\x02R\x06height\"\xdd\x01\n" +
+	"\x06height\x18\x04 \x01(\x02R\x06height\"\x87\x04\n" +
 	"\tDetection\x12\x1b\n" +
 	"\tobject_id\x18\x01 \x01(\tR\bobjectId\x12\x1f\n" +
 	"\vobject_type\x18\x02 \x01(\tR\n" +
@@ -1025,7 +1070,18 @@ const file_zqnt_edge_v3_edge_adapter_service_proto_rawDesc = "" +
 	"confidence\x18\x03 \x01(\x02R\n" +
 	"confidence\x12<\n" +
 	"\fbounding_box\x18\x04 \x01(\v2\x19.zqnt.edge.v3.BoundingBoxR\vboundingBox\x124\n" +
-	"\bposition\x18\x05 \x01(\v2\x18.zqnt.common.v3.GeoPointR\bposition\"\xdf\x01\n" +
+	"\bposition\x18\x05 \x01(\v2\x18.zqnt.common.v3.GeoPointR\bposition\x12&\n" +
+	"\frange_meters\x18\x06 \x01(\x01H\x00R\vrangeMeters\x88\x01\x01\x12,\n" +
+	"\x0fbearing_degrees\x18\a \x01(\x01H\x01R\x0ebearingDegrees\x88\x01\x01\x120\n" +
+	"\x11elevation_degrees\x18\b \x01(\x01H\x02R\x10elevationDegrees\x88\x01\x01\x12\x19\n" +
+	"\x05speed\x18\t \x01(\x01H\x03R\x05speed\x88\x01\x01\x12,\n" +
+	"\x0fheading_degrees\x18\n" +
+	" \x01(\x01H\x04R\x0eheadingDegrees\x88\x01\x01B\x0f\n" +
+	"\r_range_metersB\x12\n" +
+	"\x10_bearing_degreesB\x14\n" +
+	"\x12_elevation_degreesB\b\n" +
+	"\x06_speedB\x12\n" +
+	"\x10_heading_degrees\"\xdf\x01\n" +
 	"\x18StreamDetectionsResponse\x12.\n" +
 	"\x05asset\x18\x01 \x01(\v2\x18.zqnt.common.v3.AssetRefR\x05asset\x127\n" +
 	"\n" +
@@ -1144,6 +1200,7 @@ func file_zqnt_edge_v3_edge_adapter_service_proto_init() {
 		return
 	}
 	file_zqnt_edge_v3_edge_adapter_service_proto_msgTypes[6].OneofWrappers = []any{}
+	file_zqnt_edge_v3_edge_adapter_service_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

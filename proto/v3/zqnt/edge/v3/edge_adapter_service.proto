@@ -112,6 +112,16 @@ message Detection {
   float confidence = 3;
   BoundingBox bounding_box = 4;
   zqnt.common.v3.GeoPoint position = 5;
+  // Radar geometry, relative to the sensor that saw the object.
+  optional double range_meters = 6;
+  // Degrees clockwise from true north.
+  optional double bearing_degrees = 7;
+  // Degrees above the horizon.
+  optional double elevation_degrees = 8;
+  // m/s, of the object when the sensor tracks it.
+  optional double speed = 9;
+  // Degrees clockwise from true north, the direction the object moves.
+  optional double heading_degrees = 10;
 }
 
 message StreamDetectionsResponse {
