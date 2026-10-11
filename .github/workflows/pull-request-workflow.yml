@@ -91,12 +91,3 @@ jobs:
           git tag "${{ steps.tag.outputs.tag }}"
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${{ steps.tag.outputs.tag }}"
 
-      - name: Create GitHub pre-release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: "PR #${{ github.event.pull_request.number }} preview (${{ steps.tag.outputs.tag }})"
-          prerelease: true
-          generate_release_notes: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
